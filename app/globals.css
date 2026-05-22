@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: #f4f6f8;
+    --panel: #ffffff;
+    --panel-2: #eef2f6;
+    --text: #18202a;
+    --muted: #647080;
+    --line: #dce3ea;
+    --strong-line: #c6d0db;
+    --primary: #2764d8;
+    --primary-2: #164eb8;
+    --danger: #c83d3d;
+    --danger-bg: #fff0f0;
+    --ok: #14835c;
+    --ok-bg: #eaf8f1;
+    --warning: #a86500;
+    --warning-bg: #fff5d6;
+    --shadow: 0 14px 34px rgba(25, 32, 43, 0.12);
+    --radius: 8px;
+    --ig: #e84d89;
+    --fb: #2563eb;
+    --x: #111111;
+    --li: #0284c7;
+    --pin: #dc2626;
+    --yt: #ea580c;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --bg: #101418;
+    --panel: #171d23;
+    --panel-2: #202830;
+    --text: #edf2f7;
+    --muted: #a8b3c2;
+    --line: #2d3742;
+    --strong-line: #465260;
+    --primary: #6fa2ff;
+    --primary-2: #94bbff;
+    --danger: #ff7b7b;
+    --danger-bg: #351e24;
+    --ok: #74d7ac;
+    --ok-bg: #17362b;
+    --warning: #f0b84d;
+    --warning-bg: #392b12;
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  }
+
+  body {
+    @apply bg-bg text-text min-h-screen min-w-[320px] font-sans antialiased;
+  }
+}
+
+@layer components {
+  /* Common UI Elements that can be globalized for convenience */
+  .icon-btn {
+    @apply w-10 h-10 min-h-[38px] p-0 relative rounded-custom bg-panel-2 text-text cursor-pointer border border-transparent inline-flex items-center justify-center;
+  }
+  .btn {
+    @apply min-h-[38px] px-3 py-2 rounded-custom bg-panel-2 text-text cursor-pointer border border-transparent inline-flex items-center gap-2 justify-center;
+  }
+  .btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+  .btn.primary {
+    @apply bg-primary text-white;
+  }
+  .btn.danger {
+    @apply bg-danger text-white;
+  }
+  .btn.ghost {
+    @apply bg-transparent border-line;
+  }
+  .input, .select, .textarea {
+    @apply w-full border border-strong-line bg-panel text-text rounded-[7px] px-3 py-2 outline-none focus:border-primary focus:ring-1 focus:ring-primary;
+  }
+  .textarea {
+    @apply min-h-[92px] resize-y;
+  }
+  .section {
+    @apply p-[18px] mb-[18px] bg-panel border border-line rounded-custom;
+  }
+  .card-title {
+    @apply font-extrabold mb-2 break-words;
+  }
+  .meta {
+    @apply text-muted text-xs flex flex-wrap gap-2 items-center;
+  }
+}
