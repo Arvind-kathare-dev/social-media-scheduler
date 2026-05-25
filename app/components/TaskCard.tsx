@@ -1,11 +1,11 @@
 import { Hash } from "lucide-react";
 
 export default function TaskCard({ brief, user }: any) {
-  const dueClass = (date) => {
+  const dueClass = (date: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const due = new Date(`${date}T00:00:00`);
-    const diff = Math.ceil((due - today) / 86400000);
+    const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
     if (diff < 0) return "text-danger";
     if (diff <= 3) return "text-warning";
     return "text-ok";
