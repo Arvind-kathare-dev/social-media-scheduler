@@ -1,11 +1,12 @@
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
+
 
 export const metadata = {
   title: "Social Media Content Scheduler",
   description: "Role-based social media content scheduling workflow",
 };
 
-import { Toaster } from "react-hot-toast";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
