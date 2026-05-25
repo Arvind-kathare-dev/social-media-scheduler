@@ -136,6 +136,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   // Real authentication will come from localStorage later
   // but for the sake of the demo, we default to u1 (admin)
   const [currentUserId, setCurrentUserId] = useState("u1");
+  const [authUser, setAuthUser] = useState(null);
 
   useEffect(() => {
     // Load store from localStorage on mount
@@ -154,11 +155,14 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     const authUserStr = localStorage.getItem("user");
     if (authUserStr) {
       try {
-        const authUser = JSON.parse(authUserStr);
-        if (authUser.id) {
-          setCurrentUserId(authUser.id.toString());
-        } else if (authUser.role) {
-          const match = initialUsers.find(u => u.role === authUser.role);
+        const authUserObj = JSON.parse(authUserStr);
+        setAuthUser(authUserObj);
+        
+        const userId = authUserObj.id || authUserObj._id;
+        if (userId) {
+          setCurrentUserId(userId.toString());
+        } else if (authUserObj.role) {
+          const match = initialUsers.find(u => u.role === authUserObj.role);
           if (match) setCurrentUserId(match.id);
         }
       } catch (e) {}
@@ -186,7 +190,24 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   const toggleDark = () => setDark(!dark);
 
   const usersList = store?.users || initialUsers;
-  const currentUser = usersList.find((u: any) => u.id === currentUserId) || usersList[0];
+  
+  // Determine current user
+  let baseUser = usersList.find((u: any) => u.id === currentUserId);
+  let currentUser;
+
+  if (authUser) {
+    // If we have a real authenticated user, use their data, fallback to baseUser or default
+    currentUser = {
+      ...(baseUser || usersList[0]),
+      id: authUser.id || authUser._id || currentUserId,
+      name: authUser.name || authUser.username || (baseUser ? baseUser.name : "User"),
+      email: authUser.email || (baseUser ? baseUser.email : ""),
+      role: authUser.role || (baseUser ? baseUser.role : "admin"),
+      avatar: (authUser.name || authUser.username || (baseUser ? baseUser.name : "U")).charAt(0).toUpperCase()
+    };
+  } else {
+    currentUser = baseUser || usersList[0];
+  }
 
   const updateStore = (updater) => {
     setStore(prev => {

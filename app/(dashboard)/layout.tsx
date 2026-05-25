@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { SchedulerProvider, useScheduler } from "../context/SchedulerContext";
-import { 
-  LayoutDashboard, FileEdit, ListTodo, MessageSquareCheck, 
+import {
+  LayoutDashboard, FileEdit, ListTodo, MessageSquareCheck,
   CalendarDays, Image as ImageIcon, Settings, UploadCloud,
   Sun, Moon, Bell, Users
 } from "lucide-react";
@@ -13,12 +13,12 @@ import {
 const navByRole = {
   admin: [
     { label: "Dashboard", path: "/", icon: <LayoutDashboard size={18} /> },
+    { label: "Users", path: "/users", icon: <Users size={18} /> },
     { label: "Briefs", path: "/briefs", icon: <FileEdit size={18} /> },
     { label: "Task Queue", path: "/task-queue", icon: <ListTodo size={18} /> },
     { label: "Review", path: "/review", icon: <MessageSquareCheck size={18} /> },
     { label: "Calendar", path: "/calendar", icon: <CalendarDays size={18} /> },
     { label: "Library", path: "/library", icon: <ImageIcon size={18} /> },
-    { label: "Users", path: "/users", icon: <Users size={18} /> },
     { label: "Settings", path: "/settings", icon: <Settings size={18} /> },
   ],
   editor: [
@@ -67,7 +67,7 @@ function Topbar() {
             <Bell size={18} />
             {unreadCount > 0 && <span className="badge-count absolute -top-1 -right-1 w-[18px] h-[18px] rounded-full bg-danger text-white text-[11px] grid place-items-center">{unreadCount}</span>}
           </button>
-          
+
           {showNotifications && (
             <div className="absolute right-0 top-full mt-2 w-[300px] max-h-[400px] overflow-auto bg-panel border border-strong-line rounded-custom shadow-custom p-3 z-50">
               {store.notifications.filter(n => n.userId === currentUser.id).length > 0 ? (
@@ -85,7 +85,7 @@ function Topbar() {
         </div>
 
         <div className="relative ml-3">
-          <button 
+          <button
             className="w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center border-none cursor-pointer"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
           >
@@ -103,7 +103,7 @@ function Topbar() {
                 </div>
                 <div className="text-xs text-muted truncate">{currentUser.email}</div>
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="w-full text-left px-4 py-2 text-danger hover:bg-panel-2 transition-colors text-sm"
               >
@@ -130,17 +130,17 @@ function Sidebar() {
         </div>
         <span className="text-lg tracking-tight">Scheduler</span>
       </div>
-      
+
       <nav className="nav grid gap-1.5">
         {navItems.map((item) => {
           const isActive = pathname === item.path;
           return (
-            <Link 
-              key={item.path} 
+            <Link
+              key={item.path}
               href={item.path}
               className={`w-full flex items-center gap-2.5 rounded-[7px] px-3 py-2.5 text-sm transition-colors ${isActive ? 'bg-panel-2 text-text font-medium' : 'text-muted hover:bg-panel-2 hover:text-text'}`}
             >
-              <span aria-hidden="true" className="w-5 flex items-center justify-center">{item.icon}</span> 
+              <span aria-hidden="true" className="w-5 flex items-center justify-center">{item.icon}</span>
               {item.label}
             </Link>
           );
