@@ -17,6 +17,7 @@ const initialUsers = [
   { id: "u2", name: "Jordan Lee", email: "jordan@example.com", role: "editor", avatar: "JL", password: "password123" },
   { id: "u3", name: "Avery Kim", email: "avery@example.com", role: "designer", avatar: "AK", password: "password123" },
   { id: "u4", name: "Nina Shah", email: "nina@example.com", role: "designer", avatar: "NS", password: "password123" },
+  { id: "u5", name: "Dev Singh", email: "dev@example.com", role: "developer", avatar: "DS", password: "password123" },
 ];
 
 function seedStore() {
@@ -53,7 +54,7 @@ function seedStore() {
       tone: "Educational",
       notes: "Editorial treatment, readable quote typography.",
       dueDate: iso(6),
-      assignedTo: "u3",
+      assignedTo: "u5",
       priority: "Normal",
       createdBy: "u2",
       createdAt: new Date(today.getTime() - 86400000).toISOString(),
@@ -153,6 +154,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
 
     // Try to load real auth user if available
     const authUserStr = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
     if (authUserStr) {
       try {
         const authUserObj = JSON.parse(authUserStr);
@@ -166,6 +168,75 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
           if (match) setCurrentUserId(match.id);
         }
       } catch (e) {}
+    }
+
+    if (token) {
+      // Fetch users from backend
+      const fetchUsers = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+          const res = await fetch(`${apiUrl}/users`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.data) {
+            setStore((prev: any) => {
+              if (!prev) return prev;
+              const backendUsers = data.data.map((u: any) => ({
+                id: u.id.toString(),
+                name: u.name,
+                email: u.email,
+                role: u.role,
+                avatar: u.name ? u.name.charAt(0).toUpperCase() : "U",
+                password: "" // removed from backend
+              }));
+              return { ...prev, users: backendUsers };
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch users", err);
+        }
+      };
+      
+      // Fetch tasks from backend
+      const fetchTasks = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+          const res = await fetch(`${apiUrl}/tasks`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.tasks) {
+            setStore((prev: any) => {
+              if (!prev) return prev;
+              const backendTasks = data.tasks.map((t: any) => ({
+                id: t.id.toString(),
+                title: t.title,
+                copy: t.description || "",
+                hashtags: t.hashtags ? (typeof t.hashtags === 'string' ? JSON.parse(t.hashtags) : t.hashtags) : [],
+                platforms: t.platforms ? (typeof t.platforms === 'string' ? JSON.parse(t.platforms) : t.platforms) : [],
+                tone: t.tone || "Professional",
+                notes: t.notes || "",
+                dueDate: t.due_date ? new Date(t.due_date).toISOString().slice(0, 10) : "",
+                assignedTo: t.assigned_to ? t.assigned_to.toString() : "",
+                assignedToName: t.assigned_to_name || "",
+                assignedToEmail: t.assigned_to_email || "",
+                priority: t.priority === "high" || t.priority === "urgent" ? "Urgent" : (t.priority === "low" ? "Low" : "Normal"),
+                createdBy: t.created_by ? t.created_by.toString() : "",
+                createdByName: t.created_by_name || "",
+                createdAt: t.created_at || new Date().toISOString(),
+                status: t.status || "todo",
+                visualReference: t.visual_reference || ""
+              }));
+              return { ...prev, briefs: backendTasks };
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch tasks", err);
+        }
+      };
+      
+      fetchUsers().then(fetchTasks);
     }
 
     const isDark = localStorage.getItem("scheduler-dark") === "true";
@@ -199,7 +270,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     // If we have a real authenticated user, use their data, fallback to baseUser or default
     currentUser = {
       ...(baseUser || usersList[0]),
-      id: authUser.id || authUser._id || currentUserId,
+      id: (authUser.id || authUser._id || currentUserId).toString(),
       name: authUser.name || authUser.username || (baseUser ? baseUser.name : "User"),
       email: authUser.email || (baseUser ? baseUser.email : ""),
       role: authUser.role || (baseUser ? baseUser.role : "admin"),

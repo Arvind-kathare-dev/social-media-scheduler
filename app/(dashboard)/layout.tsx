@@ -7,15 +7,15 @@ import { SchedulerProvider, useScheduler } from "../context/SchedulerContext";
 import {
   LayoutDashboard, FileEdit, ListTodo, MessageSquareCheck,
   CalendarDays, Image as ImageIcon, Settings, UploadCloud,
-  Sun, Moon, Bell, Users
+  Sun, Moon, Bell, Users, BarChart3
 } from "lucide-react";
 
 const navByRole = {
   admin: [
     { label: "Dashboard", path: "/", icon: <LayoutDashboard size={18} /> },
     { label: "Users", path: "/users", icon: <Users size={18} /> },
-    { label: "Briefs", path: "/briefs", icon: <FileEdit size={18} /> },
-    { label: "Task Queue", path: "/task-queue", icon: <ListTodo size={18} /> },
+    { label: "Workload", path: "/workload", icon: <BarChart3 size={18} /> },
+    { label: "Tasks", path: "/tasks", icon: <FileEdit size={18} /> },
     { label: "Review", path: "/review", icon: <MessageSquareCheck size={18} /> },
     { label: "Calendar", path: "/calendar", icon: <CalendarDays size={18} /> },
     { label: "Library", path: "/library", icon: <ImageIcon size={18} /> },
@@ -23,14 +23,22 @@ const navByRole = {
   ],
   editor: [
     { label: "Dashboard", path: "/", icon: <LayoutDashboard size={18} /> },
-    { label: "Briefs", path: "/briefs", icon: <FileEdit size={18} /> },
-    { label: "Review", path: "/review", icon: <MessageSquareCheck size={18} /> },
+    { label: "My Tasks", path: "/my-tasks", icon: <ListTodo size={18} /> },
+    { label: "Calendar", path: "/calendar", icon: <CalendarDays size={18} /> },
     { label: "Library", path: "/library", icon: <ImageIcon size={18} /> },
   ],
   designer: [
     { label: "Dashboard", path: "/", icon: <LayoutDashboard size={18} /> },
     { label: "My Tasks", path: "/my-tasks", icon: <ListTodo size={18} /> },
     { label: "My Uploads", path: "/my-uploads", icon: <UploadCloud size={18} /> },
+    { label: "Calendar", path: "/calendar", icon: <CalendarDays size={18} /> },
+    { label: "Library", path: "/library", icon: <ImageIcon size={18} /> },
+  ],
+  developer: [
+    { label: "Dashboard", path: "/", icon: <LayoutDashboard size={18} /> },
+    { label: "My Tasks", path: "/my-tasks", icon: <ListTodo size={18} /> },
+    { label: "Calendar", path: "/calendar", icon: <CalendarDays size={18} /> },
+    { label: "Library", path: "/library", icon: <ImageIcon size={18} /> },
   ],
 };
 
@@ -151,7 +159,24 @@ function Sidebar() {
 }
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
-  // Check auth here if needed, or just let context handle it
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+
+    if (!token || !user) {
+      router.push("/login");
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
+
+  if (!isAuthenticated) {
+    return <div className="min-h-screen bg-bg flex items-center justify-center text-muted">Loading...</div>;
+  }
+
   return (
     <div className="app min-h-screen grid grid-cols-[260px_minmax(0,1fr)] bg-bg text-text">
       <Sidebar />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Plus, Edit2, Trash2, Lock, AlertTriangle, Users } from "lucide-react";
+import { Plus, Edit2, Trash2, Lock, AlertTriangle, Users, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import Input from "../../components/Input";
 import Modal from "../../components/Modal";
@@ -10,6 +10,7 @@ import Modal from "../../components/Modal";
 export default function UsersPage() {
   const { store, updateStore, currentUser, users } = useScheduler();
 
+  const [activeTab, setActiveTab] = useState<"directory" | "workload">("directory");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
 
@@ -24,7 +25,17 @@ export default function UsersPage() {
     mobile: "",
   });
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const isAdmin = currentUser.role === "admin";
+  const tasks = store.briefs || [];
 
   const handleOpenForm = (user = null) => {
     if (user) {
@@ -182,7 +193,7 @@ export default function UsersPage() {
       <div className="max-w-4xl mx-auto text-center py-20 text-muted">
         <Lock className="mx-auto mb-4" size={48} />
         <h2 className="text-xl font-bold text-text">Access Denied</h2>
-        <p>You must be an admin to manage users.</p>
+        <p>You must be an admin to view this page.</p>
       </div>
     );
   }
@@ -191,25 +202,38 @@ export default function UsersPage() {
     admin: "bg-danger/10 text-danger border-danger/20",
     editor: "bg-warning/10 text-warning border-warning/20",
     designer: "bg-primary/10 text-primary border-primary/20",
+    developer: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
   };
 
   return (
-    <div className="max-w-6xl mx-auto h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
+    <div className="max-w-7xl mx-auto h-full flex flex-col pb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Users size={16} />
             </div>
-            <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight">Team Members</h1>
+            <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight">Team Management</h1>
           </div>
-          <p className="text-muted text-sm m-0 max-w-xl">
-            Manage system access, roles, and contact information across your organization.
+          <p className="text-muted text-sm m-0 max-w-xl mt-2">
+            Manage system access, roles, and track task progress across your team.
           </p>
         </div>
-        <button className="btn primary flex items-center gap-2 px-5 py-2.5 shadow-sm hover:shadow-md transition-all" onClick={() => handleOpenForm()}>
-          <Plus size={18} /> <span className="font-semibold">Add Member</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search users..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-panel-2 border border-line rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+          </div>
+          <button className="btn primary flex items-center justify-center gap-2 px-5 py-2 h-9 shadow-sm hover:shadow-md transition-all whitespace-nowrap w-full sm:w-auto" onClick={() => handleOpenForm()}>
+            <Plus size={18} /> <span className="font-semibold hidden sm:inline">Add Member</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-panel border border-strong-line rounded-xl shadow-sm overflow-hidden flex-1">
@@ -224,7 +248,28 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="text-sm">
-              {(store.users || users).filter((u: any) => u.id !== currentUser.id).map((u: any) => (
+              {(() => {
+                const allUsers = (store.users || users).filter((u: any) => u.id !== currentUser.id);
+                const filteredUsers = allUsers.filter((u: any) => 
+                  u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                  u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  u.role.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                
+                const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+                const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+                if (paginatedUsers.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={4} className="py-10 text-center text-muted">
+                        No users found matching your search.
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return paginatedUsers.map((u: any) => (
                 <tr key={u.id} className="border-b border-line last:border-0 hover:bg-panel-2/50 transition-colors group">
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-4">
@@ -262,10 +307,63 @@ export default function UsersPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))})()}
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {(() => {
+          const allUsers = (store.users || users).filter((u: any) => u.id !== currentUser.id);
+          const filteredUsers = allUsers.filter((u: any) => 
+            u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            u.role.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+          if (totalPages > 1) {
+            return (
+              <div className="p-4 border-t border-strong-line bg-panel-2/30 flex items-center justify-between">
+                <span className="text-xs font-bold text-muted uppercase tracking-wider">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
+                </span>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-panel border border-line text-muted hover:text-text hover:bg-panel-2 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="flex items-center gap-1 px-2">
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors ${
+                          currentPage === i + 1 
+                            ? "bg-primary text-white" 
+                            : "text-muted hover:bg-panel-2 hover:text-text"
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-panel border border-line text-muted hover:text-text hover:bg-panel-2 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       <Modal
@@ -303,7 +401,8 @@ export default function UsersPage() {
               options={[
                 { label: "Admin", value: "admin" },
                 { label: "Editor", value: "editor" },
-                { label: "Designer", value: "designer" }
+                { label: "Designer", value: "designer" },
+                { label: "Developer", value: "developer" }
               ]}
             />
           </div>
