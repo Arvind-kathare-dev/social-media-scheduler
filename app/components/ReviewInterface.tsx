@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useScheduler } from "../context/SchedulerContext";
 import { Check, AlertCircle, CornerDownRight, Send } from "lucide-react";
+import RichTextEditor from "./RichTextEditor";
 
 export default function ReviewInterface({ title, description, isDesignerOnly = false }) {
   const { store, updateStore, currentUser, users, addNotification } = useScheduler();
@@ -143,7 +144,7 @@ export default function ReviewInterface({ title, description, isDesignerOnly = f
                             <strong>{author?.name}</strong>
                             <span>{new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           </div>
-                          <p className="text-sm m-0">{comment.text}</p>
+                          <div className="text-sm m-0 prose prose-sm max-w-none prose-p:my-1" dangerouslySetInnerHTML={{ __html: comment.text }} />
                           
                           {/* Replies */}
                           {replies.length > 0 && (
@@ -153,7 +154,7 @@ export default function ReviewInterface({ title, description, isDesignerOnly = f
                                 return (
                                   <div key={reply.id} className="text-sm pt-2 mt-1 border-t border-line/50">
                                     <div className="text-xs text-muted mb-1"><strong>{replyAuthor?.name}</strong></div>
-                                    {reply.text}
+                                    <div className="prose prose-sm max-w-none prose-p:my-0.5" dangerouslySetInnerHTML={{ __html: reply.text }} />
                                   </div>
                                 );
                               })}
@@ -171,22 +172,30 @@ export default function ReviewInterface({ title, description, isDesignerOnly = f
 
                 <form onSubmit={(e) => handleCommentSubmit(e, upload.id, brief.title)} className="mt-auto border-t border-line pt-3">
                   {replyTo && (
-                    <div className="text-xs text-muted mb-2 flex justify-between bg-panel-2 p-1.5 rounded">
-                      <span>Replying to comment...</span>
-                      <button type="button" onClick={() => setReplyTo(null)} className="text-danger">&times;</button>
+                    <div className="flex items-center gap-2 text-xs font-medium text-primary bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 w-fit mb-2">
+                      <CornerDownRight size={12} />
+                      Replying to comment...
+                      <button type="button" onClick={() => setReplyTo(null)} className="ml-2 hover:text-danger">
+                        <span className="text-danger">&times;</span>
+                      </button>
                     </div>
                   )}
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      className="input flex-1" 
-                      placeholder="Add a comment..." 
-                      value={commentText}
-                      onChange={e => setCommentText(e.target.value)}
+                  <div className="relative">
+                    <RichTextEditor 
+                        value={commentText}
+                        onChange={setCommentText}
+                        placeholder="Write a comment or type @ to mention..."
+                        users={store.users || users}
+                        actionButton={
+                            <button 
+                                type="submit" 
+                                disabled={!commentText.trim() || commentText === '<p></p>'}
+                                className="px-4 py-1.5 rounded-md bg-primary text-white flex items-center justify-center shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-bold"
+                            >
+                                Send <Send size={12} className="ml-1.5" />
+                            </button>
+                        }
                     />
-                    <button type="submit" className="btn primary px-3" disabled={!commentText.trim()}>
-                      <Send size={16} />
-                    </button>
                   </div>
                 </form>
               </div>

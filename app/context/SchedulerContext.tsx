@@ -29,7 +29,7 @@ function seedStore() {
     d.setDate(today.getDate() + offset);
     return d.toISOString().slice(0, 10);
   };
-  
+
   const briefs = [
     {
       id: "b1",
@@ -129,13 +129,13 @@ function seedStore() {
     },
   ];
 
-  return { briefs, uploads, comments, events: [], notifications: [], users: initialUsers };
+  return { briefs, uploads, comments, events: [], notifications: [], users: initialUsers, folders: [] };
 }
 
 export function SchedulerProvider({ children }: { children: ReactNode }) {
   const [store, setStore] = useState(null);
   const [dark, setDark] = useState(false);
-  
+
   // Real authentication will come from localStorage later
   // but for the sake of the demo, we default to u1 (admin)
   const [currentUserId, setCurrentUserId] = useState("u1");
@@ -146,22 +146,22 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Setup Socket.IO connection
     const token = localStorage.getItem("token");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     const socketUrl = apiUrl.replace(/\/api$/, "");
-    
+
     if (token) {
       const newSocket = io(socketUrl, { transports: ["websocket", "polling"] });
       setSocket(newSocket);
-      
+
       newSocket.on("connect", () => {
         // We will emit joinUserRoom in a separate effect when currentUserId is available
       });
 
       newSocket.on("notification", (data: any) => {
         // Also add it to our store so the UI updates
-        setStore(prev => prev ? { 
-            ...prev, 
-            notifications: [data, ...(prev.notifications || [])] 
+        setStore(prev => prev ? {
+          ...prev,
+          notifications: [data, ...(prev.notifications || [])]
         } : prev);
 
         toast((t) => (
@@ -196,16 +196,16 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     if (socket && currentUserId) {
       // If already connected, join now
       if (socket.connected) {
-          socket.emit("joinUserRoom", currentUserId);
+        socket.emit("joinUserRoom", currentUserId);
       }
       // Also join on any future reconnects
       const onConnect = () => {
-          socket.emit("joinUserRoom", currentUserId);
+        socket.emit("joinUserRoom", currentUserId);
       };
       socket.on("connect", onConnect);
-      
+
       return () => {
-          socket.off("connect", onConnect);
+        socket.off("connect", onConnect);
       };
     }
   }, [socket, currentUserId]);
@@ -213,16 +213,16 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Load store from localStorage on mount ONLY ONCE
     if (refreshCounter === 0) {
-        const saved = localStorage.getItem("scheduler-store");
-        if (saved) {
-          try {
-            setStore(JSON.parse(saved));
-          } catch {
-            setStore(seedStore());
-          }
-        } else {
+      const saved = localStorage.getItem("scheduler-store");
+      if (saved) {
+        try {
+          setStore(JSON.parse(saved));
+        } catch {
           setStore(seedStore());
         }
+      } else {
+        setStore(seedStore());
+      }
     }
 
     // Try to load real auth user if available
@@ -232,7 +232,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
       try {
         const authUserObj = JSON.parse(authUserStr);
         setAuthUser(authUserObj);
-        
+
         const userId = authUserObj.id || authUserObj._id;
         if (userId) {
           setCurrentUserId(userId.toString());
@@ -240,7 +240,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
           const match = initialUsers.find(u => u.role === authUserObj.role);
           if (match) setCurrentUserId(match.id);
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (token) {
@@ -270,7 +270,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
           console.error("Failed to fetch users", err);
         }
       };
-      
+
       // Fetch notifications from backend
       const fetchNotifications = async () => {
         try {
@@ -328,32 +328,99 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
           console.error("Failed to fetch tasks", err);
         }
       };
-      
-      fetchUsers().then(fetchTasks).then(fetchNotifications);
+
+      // Fetch folders from backend
+      const fetchFolders = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+          const res = await fetch(`${apiUrl}/folders`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.data) {
+            setStore((prev: any) => {
+              if (!prev) return prev;
+              const backendFolders = data.data.map((f: any) => ({
+                id: f.id.toString(),
+                name: f.name,
+                assignedTo: f.assigned_to ? (typeof f.assigned_to === 'string' ? JSON.parse(f.assigned_to) : f.assigned_to).map(String) : [],
+                createdBy: f.created_by ? f.created_by.toString() : "",
+                createdAt: f.created_at || new Date().toISOString(),
+                platforms: f.platforms ? (typeof f.platforms === 'string' ? JSON.parse(f.platforms) : f.platforms).map(String) : []
+              }));
+              return { ...prev, folders: backendFolders };
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch folders", err);
+        }
+      };
+
+      // Fetch assets from backend
+      const fetchAssets = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+          const res = await fetch(`${apiUrl}/assets`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.data) {
+            setStore((prev: any) => {
+              if (!prev) return prev;
+              const backendAssets = data.data.map((a: any) => ({
+                id: a.id.toString(),
+                title: a.title,
+                copy: a.copy || "",
+                files: typeof a.files === 'string' ? JSON.parse(a.files) : (a.files || []),
+                platform: a.platform,
+                folderId: a.folder_id ? a.folder_id.toString() : null,
+                authorId: a.author_id ? a.author_id.toString() : "",
+                uploadedAt: a.created_at || new Date().toISOString(),
+                status: "approved",
+                isDirect: true
+              }));
+              
+              // We need to merge them with existing uploads (like task uploads) or just replace standalone uploads.
+              // For simplicity, let's keep task uploads (where briefId exists) and add these standalone ones.
+              const taskUploads = (prev.uploads || []).filter((u: any) => u.briefId);
+              return { ...prev, uploads: [...taskUploads, ...backendAssets] };
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch assets", err);
+        }
+      };
+
+      fetchUsers().then(fetchTasks).then(fetchNotifications).then(fetchFolders).then(fetchAssets);
     }
 
     if (refreshCounter === 0) {
-        const isDark = localStorage.getItem("scheduler-dark") === "true";
-        setDark(isDark);
+      const isDark = localStorage.getItem("scheduler-dark") === "true";
+      setDark(isDark);
     }
   }, [refreshCounter]);
 
   useEffect(() => {
     if (!socket) return;
     const handleRefresh = () => {
-        setRefreshCounter(prev => prev + 1);
+      setRefreshCounter(prev => prev + 1);
     };
     socket.on('tasks_refresh_needed', handleRefresh);
     socket.on('task_updated', handleRefresh);
     return () => {
-        socket.off('tasks_refresh_needed', handleRefresh);
-        socket.off('task_updated', handleRefresh);
+      socket.off('tasks_refresh_needed', handleRefresh);
+      socket.off('task_updated', handleRefresh);
     };
   }, [socket]);
 
   useEffect(() => {
     if (store) {
-      localStorage.setItem("scheduler-store", JSON.stringify(store));
+      try {
+        localStorage.setItem("scheduler-store", JSON.stringify(store));
+      } catch (err) {
+        console.warn("Storage quota exceeded. Unable to save store locally.");
+        toast.error("File is too large to save locally. Please remove large images.");
+      }
     }
   }, [store]);
 
@@ -369,7 +436,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   const toggleDark = () => setDark(!dark);
 
   const usersList = store?.users || initialUsers;
-  
+
   // Determine current user
   let baseUser = usersList.find((u: any) => u.id === currentUserId);
   let currentUser;
@@ -414,16 +481,16 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
 
     // API Call
     try {
-        const token = localStorage.getItem("token");
-        if (token) {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-            await fetch(`${apiUrl}/notifications/read-all`, {
-                method: 'PATCH',
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-        }
-    } catch(e) {
-        console.error("Failed to mark notifications read", e);
+      const token = localStorage.getItem("token");
+      if (token) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+        await fetch(`${apiUrl}/notifications/read-all`, {
+          method: 'PATCH',
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+      }
+    } catch (e) {
+      console.error("Failed to mark notifications read", e);
     }
   };
 

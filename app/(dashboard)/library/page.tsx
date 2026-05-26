@@ -2,25 +2,41 @@
 
 import { useState, useMemo } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Download, Copy, Check, Filter, Search, Image as ImageIcon, ExternalLink, Calendar as CalendarIcon, Tag, Clock, Folder, FolderPlus, ArrowLeft, Users as UsersIcon, Edit2, Trash2 } from "lucide-react";
+import { Download, Copy, Check, Filter, Search, Image as ImageIcon, ExternalLink, Calendar as CalendarIcon, Tag, Clock, Folder, FolderPlus, ArrowLeft, Users as UsersIcon, Edit2, Trash2, FileText, File, Video, Eye, ChevronLeft, ChevronRight, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function LibraryPage() {
-  const { store, users, updateStore, currentUserId } = useScheduler();
+  const { store, users, updateStore, currentUserId, currentUser } = useScheduler();
   const [platformFilter, setPlatformFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [uploadData, setUploadData] = useState({ title: "", fileUrl: "", platform: "Instagram Feed", copy: "", folderId: "" });
+  const [uploadData, setUploadData] = useState({ title: "", files: [] as { file?: File, url: string, name: string }[], externalLink: "", platform: "Instagram Feed", copy: "", folderId: "" });
 
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
-  const [folderData, setFolderData] = useState({ name: "", assignedTo: [] as string[] });
+  const [folderData, setFolderData] = useState({ name: "", assignedTo: [] as string[], platforms: [] as string[] });
   const [folderAssigneeRole, setFolderAssigneeRole] = useState("designer");
+  
+  const [viewingAsset, setViewingAsset] = useState<any | null>(null);
+  const [viewIndex, setViewIndex] = useState(0);
 
   const folders = store.folders || [];
   const isAdmin = store.users?.find((u: any) => u.id === currentUserId)?.role === "admin" || users.find((u: any) => u.id === currentUserId)?.role === "admin";
+
+  // Check if current active folder is assigned to designers or editors
+  const activeFolderAssignees = (() => {
+    if (!activeFolderId) return [];
+    const folder = folders.find((f: any) => f.id === activeFolderId);
+    if (!folder) return [];
+    return folder.assignedTo.map((uid: string) => users.find((u: any) => u.id === uid));
+  })();
+  const activeFolderHasDesignerOrEditor = activeFolderAssignees.some(
+    (u: any) => u?.role === 'designer' || u?.role === 'editor'
+  );
+  const showPlatformField = ['designer', 'editor'].includes(currentUser?.role || '') || 
+                            (isAdmin && activeFolderHasDesignerOrEditor);
 
   const STANDARD_PLATFORMS = [
     "Instagram Feed",
@@ -102,12 +118,19 @@ export default function LibraryPage() {
   }, [folders, isAdmin, currentUserId, activeFolderId, searchQuery]);
 
   const allPlatforms = useMemo(() => {
+    const activeFolder = folders.find((f: any) => f.id === activeFolderId);
+    if (activeFolder && activeFolder.platforms && activeFolder.platforms.length > 0) {
+      return ["All", ...activeFolder.platforms];
+    }
+    
     const platforms = new Set<string>();
-    displayedAssets.forEach((item: any) => {
-      item.platforms?.forEach((p: string) => platforms.add(p));
-    });
+    libraryItems
+      .filter((item: any) => item.folderId === activeFolderId)
+      .forEach((item: any) => {
+        item.platforms?.forEach((p: string) => platforms.add(p));
+      });
     return ["All", ...Array.from(platforms)];
-  }, [libraryItems]);
+  }, [folders, activeFolderId, libraryItems]);
 
   const handleCopyCaption = (id: string, copy: string) => {
     if (!copy) {
@@ -120,20 +143,51 @@ export default function LibraryPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleDownload = (item: any) => {
+  const handleDownload = async (item: any) => {
     if (item.files && item.files.length > 0) {
-      item.files.forEach((file: any) => {
-        if (file.url) {
-          const a = document.createElement("a");
-          a.href = file.url;
-          a.download = file.name || "download";
-          a.target = "_blank";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }
-      });
       toast.success(`Downloading ${item.files.length} asset(s)...`);
+      
+      for (let i = 0; i < item.files.length; i++) {
+        const file = item.files[i];
+        if (file.url) {
+          try {
+            if (file.url.startsWith('http') && !file.url.includes('google.com')) {
+              // Fetch file to trigger actual download for cross-origin URLs
+              const response = await fetch(file.url);
+              const blob = await response.blob();
+              const blobUrl = window.URL.createObjectURL(blob);
+              
+              const a = document.createElement("a");
+              a.href = blobUrl;
+              a.download = file.name || "download";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(blobUrl);
+            } else {
+              // For external links like GDrive or local blobs
+              const a = document.createElement("a");
+              a.href = file.url;
+              a.download = file.name || "download";
+              a.target = "_blank";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
+          } catch (err) {
+            console.error("Download failed, opening in new tab instead", err);
+            window.open(file.url, "_blank");
+          }
+        }
+        
+        // Stagger multiple downloads to prevent aggressive browser blocking
+        if (item.files.length > 1 && i < item.files.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      if (item.files.length > 1) {
+        toast.success("Check your browser's address bar to 'Allow Multiple Downloads' if they didn't all save.", { duration: 5000 });
+      }
     } else if (item.visualReference) {
       window.open(item.visualReference, "_blank");
       toast.success("Opening visual reference...");
@@ -142,81 +196,267 @@ export default function LibraryPage() {
     }
   };
 
-  const handleDirectUpload = () => {
-    if (!uploadData.title || !uploadData.fileUrl) {
-      toast.error("Please provide a title and file link/upload");
+  const handleDownloadFolder = async (folderId: string, folderName: string) => {
+    const folderAssets = store.uploads?.filter((u: any) => u.folderId === folderId && u.status === "approved") || [];
+    if (folderAssets.length === 0) {
+      toast.error("This folder has no approved assets to download.");
       return;
     }
     
-    const newUpload = {
-      id: `lib_${Date.now()}`,
-      files: [
-        {
-          url: uploadData.fileUrl,
-          platform: uploadData.platform,
-          name: uploadData.title,
-          type: "image/png"
+    const loadingToast = toast.loading(`Preparing ${folderName}.zip...`);
+    
+    try {
+      // Dynamic import for jszip so we don't block initial page load
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      let hasFiles = false;
+
+      for (const asset of folderAssets) {
+        if (asset.files && asset.files.length > 0) {
+          for (let i = 0; i < asset.files.length; i++) {
+            const file = asset.files[i];
+            if (file.url && file.url.startsWith('http') && !file.url.includes('google.com')) {
+              try {
+                const response = await fetch(file.url);
+                const blob = await response.blob();
+                
+                // Group multi-file assets into their own subfolder, otherwise put in root
+                const folderPath = asset.files.length > 1 ? `${asset.title}/` : "";
+                const fileName = file.name || `file_${i}.png`;
+                
+                zip.file(`${folderPath}${fileName}`, blob);
+                hasFiles = true;
+              } catch (e) {
+                console.error("Failed to fetch file for zip", file.url);
+              }
+            }
+          }
         }
-      ],
-      copy: uploadData.copy,
-      title: uploadData.title,
-      authorId: currentUserId,
-      uploadedAt: new Date().toISOString(),
-      status: "approved",
-      folderId: uploadData.folderId || null
-    };
+      }
 
-    updateStore((prev: any) => ({
-      ...prev,
-      uploads: [newUpload, ...(prev.uploads || [])]
-    }));
+      if (!hasFiles) {
+        toast.error("No downloadable files found in this folder.", { id: loadingToast });
+        return;
+      }
 
-    toast.success("Asset uploaded to Library!");
-    setIsUploadModalOpen(false);
-    setUploadData({ title: "", fileUrl: "", platform: "Instagram Feed", copy: "", folderId: activeFolderId || "" });
+      const content = await zip.generateAsync({ type: "blob" });
+      const blobUrl = window.URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${folderName.replace(/\s+/g, '_')}_Assets.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+
+      toast.success("Folder downloaded successfully!", { id: loadingToast });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to create zip file.", { id: loadingToast });
+    }
   };
 
-  const handleSaveFolder = () => {
+  const handleDirectUpload = async () => {
+    if (!uploadData.title || (uploadData.files.length === 0 && !uploadData.externalLink)) {
+      toast.error("Please provide a title and at least one file or external link");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+    const formData = new FormData();
+    formData.append("title", uploadData.title);
+    formData.append("platform", uploadData.platform);
+    formData.append("copy", uploadData.copy);
+    
+    if (activeFolderId) {
+      formData.append("folderId", activeFolderId);
+    }
+
+    if (uploadData.externalLink) {
+      formData.append("externalLink", uploadData.externalLink);
+    }
+
+    uploadData.files.forEach(f => {
+      if (f.file) {
+        formData.append("files", f.file);
+      }
+    });
+
+    const loadingToast = toast.loading("Uploading asset...");
+
+    try {
+      const res = await fetch(`${apiUrl}/assets/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await res.json();
+      
+      if (res.ok) {
+        const newUpload = {
+          id: data.data.id.toString(),
+          files: data.data.files,
+          copy: data.data.copy || "",
+          title: data.data.title,
+          authorId: currentUserId,
+          uploadedAt: data.data.created_at || new Date().toISOString(),
+          status: "approved",
+          folderId: data.data.folder_id ? data.data.folder_id.toString() : null,
+          platform: data.data.platform,
+          isDirect: true
+        };
+
+        updateStore((prev: any) => ({
+          ...prev,
+          uploads: [newUpload, ...(prev.uploads || [])]
+        }));
+
+        toast.success("Asset uploaded to Library!", { id: loadingToast });
+        setIsUploadModalOpen(false);
+        setUploadData({ title: "", files: [], externalLink: "", platform: "Instagram Feed", copy: "", folderId: activeFolderId || "" });
+      } else {
+        toast.error(data.message || "Failed to upload asset", { id: loadingToast });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Server error while uploading asset", { id: loadingToast });
+    }
+  };
+
+  const handleDeleteAsset = async (assetId: string) => {
+    if (confirm("Are you sure you want to delete this asset?")) {
+      const token = localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      
+      const loadingToast = toast.loading("Deleting asset...");
+      try {
+        const res = await fetch(`${apiUrl}/assets/${assetId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          updateStore((prev: any) => ({
+            ...prev,
+            uploads: prev.uploads.filter((u: any) => u.id !== assetId)
+          }));
+          toast.success("Asset deleted successfully", { id: loadingToast });
+        } else {
+          toast.error(data.message || "Failed to delete asset", { id: loadingToast });
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Server error while deleting asset", { id: loadingToast });
+      }
+    }
+  };
+
+  const handleSaveFolder = async () => {
     if (!folderData.name.trim()) {
       toast.error("Folder name is required.");
       return;
     }
 
+    const token = localStorage.getItem("token");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
     if (editingFolderId) {
-      updateStore((prev: any) => ({
-        ...prev,
-        folders: prev.folders.map((f: any) => f.id === editingFolderId ? { ...f, name: folderData.name, assignedTo: folderData.assignedTo } : f)
-      }));
-      toast.success("Folder updated successfully!");
+      try {
+        const res = await fetch(`${apiUrl}/folders/${editingFolderId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name: folderData.name, assigned_to: folderData.assignedTo, platforms: folderData.platforms })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          updateStore((prev: any) => ({
+            ...prev,
+            folders: prev.folders.map((f: any) => f.id === editingFolderId ? { ...f, name: folderData.name, assignedTo: folderData.assignedTo, platforms: folderData.platforms } : f)
+          }));
+          toast.success("Folder updated successfully!");
+        } else {
+          toast.error(data.message || "Failed to update folder");
+        }
+      } catch (err) {
+        toast.error("Server error while updating folder");
+      }
     } else {
-      const newFolder = {
-        id: `folder_${Date.now()}`,
-        name: folderData.name,
-        assignedTo: folderData.assignedTo,
-        createdBy: currentUserId,
-        createdAt: new Date().toISOString()
-      };
-      updateStore((prev: any) => ({
-        ...prev,
-        folders: [...(prev.folders || []), newFolder]
-      }));
-      toast.success("Folder created successfully!");
+      try {
+        const res = await fetch(`${apiUrl}/folders`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name: folderData.name, assigned_to: folderData.assignedTo, platforms: folderData.platforms })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          const newFolder = {
+            id: data.data.id.toString(),
+            name: data.data.name,
+            assignedTo: data.data.assigned_to ? (typeof data.data.assigned_to === 'string' ? JSON.parse(data.data.assigned_to) : data.data.assigned_to).map(String) : [],
+            createdBy: currentUserId,
+            createdAt: new Date().toISOString(),
+            platforms: data.data.platforms ? (typeof data.data.platforms === 'string' ? JSON.parse(data.data.platforms) : data.data.platforms).map(String) : []
+          };
+          updateStore((prev: any) => ({
+            ...prev,
+            folders: [...(prev.folders || []), newFolder]
+          }));
+          toast.success("Folder created successfully!");
+        } else {
+          toast.error(data.message || "Failed to create folder");
+        }
+      } catch (err) {
+        toast.error("Server error while creating folder");
+      }
     }
     
     setIsFolderModalOpen(false);
-    setFolderData({ name: "", assignedTo: [] });
+    setFolderData({ name: "", assignedTo: [], platforms: [] });
     setEditingFolderId(null);
   };
 
-  const handleDeleteFolder = () => {
+  const handleDeleteFolder = async () => {
     if (!editingFolderId) return;
     if (confirm("Are you sure you want to delete this folder? Assets will be moved to the General Library.")) {
-      updateStore((prev: any) => ({
-        ...prev,
-        folders: prev.folders.filter((f: any) => f.id !== editingFolderId),
-        uploads: prev.uploads?.map((u: any) => u.folderId === editingFolderId ? { ...u, folderId: null } : u) || []
-      }));
-      toast.success("Folder deleted.");
+      const token = localStorage.getItem("token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      
+      try {
+        const res = await fetch(`${apiUrl}/folders/${editingFolderId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (res.ok) {
+          updateStore((prev: any) => ({
+            ...prev,
+            folders: prev.folders.filter((f: any) => f.id !== editingFolderId),
+            uploads: prev.uploads?.map((u: any) => u.folderId === editingFolderId ? { ...u, folderId: null } : u) || []
+          }));
+          toast.success("Folder deleted.");
+        } else {
+          toast.error("Failed to delete folder");
+        }
+      } catch (err) {
+        toast.error("Server error while deleting folder");
+      }
+      
       setIsFolderModalOpen(false);
       setEditingFolderId(null);
       setActiveFolderId(null);
@@ -233,10 +473,31 @@ export default function LibraryPage() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setUploadData(prev => ({ ...prev, fileUrl: url, title: file.name }));
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      const newFiles = Array.from(selectedFiles).map(file => ({
+        file: file,
+        url: URL.createObjectURL(file),
+        name: file.name
+      }));
+      setUploadData(prev => {
+        const allFiles = [...prev.files, ...newFiles];
+        let autoTitle = allFiles[0].name;
+        if (allFiles.length > 1) {
+          autoTitle = `${allFiles.length} files selected (${allFiles[0].name}, etc)`;
+        }
+        
+        // If current title is empty, or matches previous auto-title pattern, or matches previous first file name, update it.
+        const shouldUpdateTitle = !prev.title || 
+                                  prev.title === prev.files?.[0]?.name || 
+                                  prev.title.includes("files selected");
+
+        return { 
+          ...prev, 
+          files: allFiles,
+          title: shouldUpdateTitle ? autoTitle : prev.title
+        };
+      });
     }
   };
 
@@ -280,7 +541,7 @@ export default function LibraryPage() {
             <button 
               onClick={() => {
                 setEditingFolderId(null);
-                setFolderData({ name: "", assignedTo: [] });
+                setFolderData({ name: "", assignedTo: [], platforms: [] });
                 setFolderAssigneeRole("designer");
                 setIsFolderModalOpen(true);
               }}
@@ -290,6 +551,15 @@ export default function LibraryPage() {
             </button>
           )}
           
+          {activeFolderId && !isAdmin && (
+            <button 
+              onClick={() => handleDownloadFolder(activeFolderId, folders.find((f: any) => f.id === activeFolderId)?.name || "Folder")}
+              className="w-full sm:w-auto btn bg-panel-2 text-text border border-line px-5 py-2.5 text-sm font-bold shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              <Download size={18} /> Download All
+            </button>
+          )}
+
           {activeFolderId && isAdmin && (
             <button 
               onClick={() => {
@@ -357,7 +627,7 @@ export default function LibraryPage() {
                           e.stopPropagation();
                           const firstAssignedUser = users.find((u: any) => folder.assignedTo.includes(u.id));
                           setFolderAssigneeRole(firstAssignedUser?.role || "designer");
-                          setFolderData({ name: folder.name, assignedTo: folder.assignedTo });
+                          setFolderData({ name: folder.name, assignedTo: folder.assignedTo, platforms: folder.platforms || [] });
                           setEditingFolderId(folder.id);
                           setIsFolderModalOpen(true);
                         }}
@@ -418,10 +688,29 @@ export default function LibraryPage() {
                 <div className="aspect-[4/3] bg-panel-2 relative overflow-hidden flex flex-col items-center justify-center p-6 text-center">
                   {item.files?.length > 0 ? (
                     <>
-                      {item.files[0].url?.startsWith('blob:') ? (
+                      {item.files[0].url?.startsWith('blob:') || item.files[0].type?.startsWith('image') || item.files[0].url?.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
                         <img src={item.files[0].url} alt="Preview" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ) : item.files[0].type?.includes('pdf') || item.files[0].url?.match(/\.pdf$/i) ? (
+                        <div className="flex flex-col items-center justify-center opacity-80 w-full">
+                          <FileText size={48} className="text-primary mb-3" />
+                          <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "PDF Document"}</span>
+                        </div>
+                      ) : item.files[0].type?.includes('video') || item.files[0].url?.match(/\.(mp4|webm|mov)$/i) ? (
+                        <div className="flex flex-col items-center justify-center opacity-80 w-full">
+                          <Video size={48} className="text-primary mb-3" />
+                          <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "Video File"}</span>
+                        </div>
                       ) : (
-                        <ImageIcon size={48} className="text-muted/50 mb-3" />
+                        <div className="flex flex-col items-center justify-center opacity-80 w-full">
+                          <File size={48} className="text-muted mb-3" />
+                          <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "Document"}</span>
+                        </div>
+                      )}
+                      
+                      {item.files.length > 1 && (
+                        <div className="absolute top-3 right-3 bg-black/60 text-white text-[11px] font-bold px-2.5 py-1 rounded-md backdrop-blur-md z-20 flex items-center gap-1.5 shadow-lg border border-white/10">
+                          <Copy size={12} /> {item.files.length}
+                        </div>
                       )}
                     </>
                   ) : item.visualReference ? (
@@ -440,17 +729,32 @@ export default function LibraryPage() {
                   {/* Quick Action Overlay */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3 z-30 backdrop-blur-[2px]">
                     {item.files?.[0]?.url && (
-                      <a href={item.files[0].url} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all transform translate-y-4 group-hover:translate-y-0" title="View File">
-                        <ExternalLink size={16} />
-                      </a>
+                      <button 
+                        onClick={() => { setViewingAsset(item); setViewIndex(0); }}
+                        className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all transform translate-y-4 group-hover:translate-y-0" 
+                        title="View Asset"
+                      >
+                        <Eye size={16} />
+                      </button>
                     )}
-                    <button 
-                      onClick={() => handleDownload(item)}
-                      className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
-                      title="Download Asset"
-                    >
-                      <Download size={16} />
-                    </button>
+                    {!isAdmin && (
+                      <button 
+                        onClick={() => handleDownload(item)}
+                        className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
+                        title="Download Asset"
+                      >
+                        <Download size={16} />
+                      </button>
+                    )}
+                    {(isAdmin || currentUserId === item.authorId) && item.isDirect && (
+                      <button 
+                        onClick={() => handleDeleteAsset(item.id)}
+                        className="w-10 h-10 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
+                        title="Delete Asset"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -503,20 +807,23 @@ export default function LibraryPage() {
               <label className="border-2 border-dashed border-line hover:border-primary/50 transition-colors rounded-xl p-6 flex flex-col items-center justify-center text-center bg-panel-2/30 cursor-pointer relative overflow-hidden group">
                 <input 
                   type="file" 
-                  accept="image/*,video/*" 
+                  multiple
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" 
                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
                   onChange={handleFileChange} 
                 />
                 <div className="w-12 h-12 bg-panel rounded-full flex items-center justify-center text-primary border border-line mb-3 group-hover:scale-110 transition-transform">
                   <ImageIcon size={20} />
                 </div>
-                <h3 className="font-bold text-text text-sm mb-1">Click to upload file</h3>
-                <p className="text-xs text-muted">Supports JPG, PNG, MP4 up to 50MB</p>
-                {uploadData.fileUrl && uploadData.fileUrl.startsWith('blob:') && (
-                  <div className="absolute inset-0 bg-panel z-20 flex flex-col items-center justify-center">
+                <h3 className="font-bold text-text text-sm mb-1">Click to upload file(s)</h3>
+                <p className="text-xs text-muted">Supports JPG, PNG, MP4, PDF, DOCX up to 50MB</p>
+                {uploadData.files.length > 0 && (
+                  <div className="absolute inset-0 bg-panel z-20 flex flex-col items-center justify-center p-4">
                     <Check size={32} className="text-ok mb-2" />
-                    <span className="font-bold text-ok text-sm">File Selected</span>
-                    <span className="text-xs text-text mt-1">{uploadData.title}</span>
+                    <span className="font-bold text-ok text-sm">{uploadData.files.length} File(s) Selected</span>
+                    <div className="text-xs text-text mt-1 max-h-16 overflow-y-auto w-full text-center scrollbar-thin">
+                      {uploadData.files.map((f, i) => <div key={i} className="truncate">{f.name}</div>)}
+                    </div>
                   </div>
                 )}
               </label>
@@ -532,7 +839,7 @@ export default function LibraryPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {showPlatformField && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-text uppercase tracking-wider">Platform</label>
                   <select 
@@ -540,37 +847,13 @@ export default function LibraryPage() {
                     value={uploadData.platform}
                     onChange={(e) => setUploadData({...uploadData, platform: e.target.value})}
                   >
-                    {allPlatforms.filter(p => p !== 'All').map(p => (
+                    {allPlatforms.filter((p: string) => p !== 'All').map((p: string) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
                     <option value="General">General / Other</option>
                   </select>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-bold text-text uppercase tracking-wider">External Link</label>
-                  <input 
-                    type="url" 
-                    placeholder="https://drive.google.com/..."
-                    className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-text"
-                    value={uploadData.fileUrl}
-                    onChange={(e) => setUploadData({...uploadData, fileUrl: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="hidden">
-                <input type="hidden" value={uploadData.folderId} />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold text-text uppercase tracking-wider">Default Caption (Optional)</label>
-                <textarea 
-                  placeholder="Write a caption to go along with this asset..."
-                  className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-text min-h-[80px] resize-y"
-                  value={uploadData.copy}
-                  onChange={(e) => setUploadData({...uploadData, copy: e.target.value})}
-                />
-              </div>
+              )}
 
               <button onClick={handleDirectUpload} className="btn primary w-full mt-2 font-bold shadow-sm">
                 Upload to Library
@@ -620,22 +903,60 @@ export default function LibraryPage() {
                   </span>
                 </div>
 
-                {/* Role Tabs */}
-                <div className="flex bg-panel-2 rounded-xl p-1.5 gap-1 border border-line shadow-inner">
-                  {["designer", "developer", "editor"].map(role => (
-                    <button 
-                      key={role}
-                      onClick={() => setFolderAssigneeRole(role)}
-                      className={`flex-1 py-2 text-xs font-bold capitalize rounded-lg transition-all ${
-                        folderAssigneeRole === role 
-                          ? 'bg-white text-primary shadow-sm ring-1 ring-black/5 scale-[1.02]' 
-                          : 'text-muted hover:text-text hover:bg-line/50'
-                      }`}
-                    >
-                      {role}s
-                    </button>
-                  ))}
+                {/* Role Dropdown */}
+                <div className="flex flex-col gap-1.5">
+                  <select 
+                    className="w-full bg-panel border-2 border-line rounded-xl px-4 py-3 text-sm outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all text-text font-semibold cursor-pointer"
+                    value={folderAssigneeRole}
+                    onChange={(e) => setFolderAssigneeRole(e.target.value)}
+                  >
+                    <option value="designer">Designer</option>
+                    <option value="developer">Developer</option>
+                    <option value="editor">Editor</option>
+                  </select>
                 </div>
+
+                {/* Target Platforms Multi-Select (Only when Designer is selected) */}
+                {folderAssigneeRole === "designer" && (
+                  <div className="flex flex-col gap-2 mt-1">
+                    <label className="text-[11px] font-extrabold text-muted uppercase tracking-widest">Target Platforms</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        "Instagram Feed",
+                        "Instagram Story/Reel",
+                        "Facebook",
+                        "X (Twitter)",
+                        "LinkedIn",
+                        "Pinterest",
+                        "YouTube Shorts"
+                      ].map(platform => {
+                        const isSelected = folderData.platforms.includes(platform);
+                        return (
+                          <button
+                            key={platform}
+                            type="button"
+                            onClick={() => {
+                              setFolderData(prev => {
+                                const alreadySelected = prev.platforms.includes(platform);
+                                const updated = alreadySelected
+                                  ? prev.platforms.filter(p => p !== platform)
+                                  : [...prev.platforms, platform];
+                                return { ...prev, platforms: updated };
+                              });
+                            }}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                              isSelected
+                                ? 'bg-primary/15 border-primary text-primary shadow-sm scale-[1.02]'
+                                : 'bg-panel border-line text-muted hover:border-muted/50'
+                            }`}
+                          >
+                            {platform}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* User List */}
                 <div className="border border-line rounded-2xl bg-panel-2/30 max-h-[250px] overflow-y-auto p-2 flex flex-col gap-2 relative">
@@ -710,6 +1031,72 @@ export default function LibraryPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Asset Viewer Modal */}
+      {viewingAsset && (
+        <div className="fixed inset-0 z-[110] flex flex-col bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="flex justify-between items-center p-6 text-white border-b border-white/10">
+            <div>
+              <h2 className="text-xl font-bold">{viewingAsset.title}</h2>
+              <p className="text-sm text-white/50">{viewIndex + 1} of {viewingAsset.files.length} files</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => handleDownload(viewingAsset)}
+                className="btn primary px-4 py-2 text-sm font-bold flex items-center gap-2"
+              >
+                <Download size={16} /> Download Asset
+              </button>
+              <button onClick={() => setViewingAsset(null)} className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex-1 relative flex items-center justify-center p-8 overflow-hidden">
+            {viewingAsset.files.length > 1 && (
+              <>
+                <button 
+                  onClick={() => setViewIndex(prev => prev > 0 ? prev - 1 : viewingAsset.files.length - 1)}
+                  className="absolute left-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-20"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button 
+                  onClick={() => setViewIndex(prev => prev < viewingAsset.files.length - 1 ? prev + 1 : 0)}
+                  className="absolute right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-20"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
+            
+            <div className="max-w-5xl w-full h-full flex items-center justify-center">
+              {(() => {
+                const currentFile = viewingAsset.files[viewIndex];
+                const isImage = currentFile.url?.startsWith('blob:') || currentFile.type?.startsWith('image') || currentFile.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                const isVideo = currentFile.type?.includes('video') || currentFile.url?.match(/\.(mp4|webm|mov)$/i);
+                
+                if (isImage) {
+                  return <img src={currentFile.url} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />;
+                } else if (isVideo) {
+                  return <video src={currentFile.url} controls className="max-w-full max-h-full rounded-lg shadow-2xl" />;
+                } else {
+                  return (
+                    <div className="flex flex-col items-center justify-center p-12 bg-white/5 rounded-2xl border border-white/10 text-center w-full max-w-md">
+                      <FileText size={80} className="text-white/50 mb-6" />
+                      <h3 className="text-xl font-bold text-white mb-2 line-clamp-2">{currentFile.name || "Document File"}</h3>
+                      <p className="text-white/50 text-sm mb-8">This file type cannot be previewed directly.</p>
+                      <a href={currentFile.url} target="_blank" rel="noopener noreferrer" className="btn bg-white text-black px-6 py-3 font-bold flex items-center justify-center gap-2 w-full hover:bg-white/90">
+                        <ExternalLink size={18} /> Open Document
+                      </a>
+                    </div>
+                  );
+                }
+              })()}
             </div>
           </div>
         </div>

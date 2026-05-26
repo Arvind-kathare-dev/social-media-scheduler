@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus, Type, Paperclip, X, Check,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered, Code, Link as LinkIcon,
@@ -23,9 +24,10 @@ interface RichTextEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   users?: MentionUser[];
+  actionButton?: React.ReactNode;
 }
 
-export default function RichTextEditor({ value, onChange, placeholder, users = [] }: RichTextEditorProps) {
+export default function RichTextEditor({ value, onChange, placeholder, users = [], actionButton }: RichTextEditorProps) {
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [showInsertMenu, setShowInsertMenu] = useState(false);
 
@@ -43,6 +45,37 @@ export default function RichTextEditor({ value, onChange, placeholder, users = [
   const mentionStartPos = useRef<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const insertBtnRef = useRef<HTMLButtonElement>(null);
+  const formatBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Portal dropdown positions
+  const [insertPos, setInsertPos] = useState<{ top: number; left: number } | null>(null);
+  const [formatPos, setFormatPos] = useState<{ top: number; left: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const openInsert = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (insertBtnRef.current) {
+      const r = insertBtnRef.current.getBoundingClientRect();
+      setInsertPos({ top: r.top - 8, left: r.left });
+    }
+    setShowInsertMenu(v => !v);
+    setShowFormatMenu(false);
+    setShowLinkPopover(false);
+  };
+
+  const openFormat = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (formatBtnRef.current) {
+      const r = formatBtnRef.current.getBoundingClientRect();
+      setFormatPos({ top: r.top - 8, left: r.left });
+    }
+    setShowFormatMenu(v => !v);
+    setShowInsertMenu(false);
+    setShowLinkPopover(false);
+  };
 
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(mentionQuery.toLowerCase())
@@ -63,7 +96,7 @@ export default function RichTextEditor({ value, onChange, placeholder, users = [
     content: value || '',
     editorProps: {
       attributes: {
-        class: 'w-full bg-transparent p-3 text-[13px] text-text outline-none min-h-[120px] prose prose-sm max-w-none focus:outline-none tiptap-editor',
+        class: 'w-full bg-transparent p-3 text-[13px] text-text outline-none min-h-[120px] max-w-none focus:outline-none tiptap-editor',
       },
       handleKeyDown(view, event) {
         if (showMentionMenu) {
@@ -241,43 +274,52 @@ export default function RichTextEditor({ value, onChange, placeholder, users = [
   return (
     <div className="relative w-full" ref={containerRef}>
 
-      {/* ── Format Popover ─────────────────────────────────────── */}
-      {showFormatMenu && (
-        <div onMouseDown={(e) => e.preventDefault()} className="absolute bottom-12 left-8 bg-panel-2 border border-line rounded-lg shadow-xl flex items-center p-1 z-50 text-muted">
-          <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-2 rounded transition-colors ${editor.isActive('bold') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Bold"><Bold size={15} /></button>
-          <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-2 rounded transition-colors ${editor.isActive('italic') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Italic"><Italic size={15} /></button>
-          <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-2 rounded transition-colors ${editor.isActive('underline') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Underline"><UnderlineIcon size={15} /></button>
-          <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-2 rounded transition-colors ${editor.isActive('strike') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Strikethrough"><Strikethrough size={15} /></button>
+      {/* ── Format Popover (portaled) ─────────────────────────── */}
+      {showFormatMenu && formatPos && mounted && createPortal(
+        <div
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ position: 'fixed', top: formatPos.top, left: formatPos.left, transform: 'translateY(-100%)', zIndex: 99999 }}
+          className="bg-panel-2 border border-line rounded-xl shadow-2xl flex items-center p-1 text-muted"
+        >
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }} className={`p-2 rounded transition-colors ${editor.isActive('bold') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Bold"><Bold size={15} /></button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }} className={`p-2 rounded transition-colors ${editor.isActive('italic') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Italic"><Italic size={15} /></button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }} className={`p-2 rounded transition-colors ${editor.isActive('underline') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Underline"><UnderlineIcon size={15} /></button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }} className={`p-2 rounded transition-colors ${editor.isActive('strike') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Strikethrough"><Strikethrough size={15} /></button>
           <div className="w-px h-5 bg-line mx-1" />
-          <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-2 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Bulleted list"><List size={15} /></button>
-          <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-2 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Numbered list"><ListOrdered size={15} /></button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }} className={`p-2 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Bulleted list"><List size={15} /></button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }} className={`p-2 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Numbered list"><ListOrdered size={15} /></button>
           <div className="w-px h-5 bg-line mx-1" />
-          <button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`p-2 rounded transition-colors ${editor.isActive('codeBlock') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Code block"><Code size={15} /></button>
-          <button type="button" onClick={openLinkPopover} className={`p-2 rounded transition-colors ${isLinkActive ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Link"><LinkIcon size={15} /></button>
-          <div className="absolute -bottom-2 left-4 w-4 h-4 bg-panel-2 border-b border-r border-line transform rotate-45" />
-        </div>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleCodeBlock().run(); }} className={`p-2 rounded transition-colors ${editor.isActive('codeBlock') ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Code block"><Code size={15} /></button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); openLinkPopover(e as any); }} className={`p-2 rounded transition-colors ${isLinkActive ? 'bg-line text-text' : 'hover:bg-line/50 hover:text-text'}`} title="Link"><LinkIcon size={15} /></button>
+        </div>,
+        document.body
       )}
 
-      {/* ── Insert Popover ─────────────────────────────────────── */}
-      {showInsertMenu && (
-        <div onMouseDown={(e) => e.preventDefault()} className="absolute bottom-12 left-0 w-56 bg-panel border border-line rounded-lg shadow-xl py-2 z-50 text-text text-[13px]">
-          <div className="px-3 pb-2 text-xs font-semibold text-muted border-b border-line">Insert</div>
-          <div className="max-h-[220px] overflow-y-auto pt-1">
-            <button onClick={() => { editor.chain().focus().setParagraph().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><AlignLeft size={13} /> Paragraph</button>
-            <button onClick={() => { editor.chain().focus().toggleHeading({ level: 1 }).run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><Heading1 size={13} /> Heading 1</button>
-            <button onClick={() => { editor.chain().focus().toggleHeading({ level: 2 }).run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><Heading2 size={13} /> Heading 2</button>
+      {/* ── Insert Popover (portaled) ─────────────────────────── */}
+      {showInsertMenu && insertPos && mounted && createPortal(
+        <div
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ position: 'fixed', top: insertPos.top, left: insertPos.left, transform: 'translateY(-100%)', zIndex: 99999, width: '14rem' }}
+          className="bg-panel border border-line rounded-xl shadow-2xl py-2 text-text text-[13px]"
+        >
+          <div className="px-3 pb-2 text-xs font-semibold text-muted border-b border-line">Insert block</div>
+          <div className="max-h-[240px] overflow-y-auto pt-1">
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setParagraph().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left rounded-md mx-auto"><AlignLeft size={13} /> Paragraph</button>
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><Heading1 size={13} /> Heading 1</button>
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><Heading2 size={13} /> Heading 2</button>
             <div className="h-px bg-line my-1" />
-            <button onClick={() => { editor.chain().focus().toggleBulletList().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><List size={13} /> Bulleted list</button>
-            <button onClick={() => { editor.chain().focus().toggleOrderedList().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><ListOrdered size={13} /> Numbered list</button>
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><List size={13} /> Bulleted list</button>
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><ListOrdered size={13} /> Numbered list</button>
             <div className="h-px bg-line my-1" />
-            <button onClick={() => { editor.chain().focus().toggleBlockquote().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><Quote size={13} /> Quote</button>
-            <button onClick={() => { editor.chain().focus().toggleCodeBlock().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><Code size={13} /> Code block</button>
-            <button onClick={() => { editor.chain().focus().setHorizontalRule().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><Minus size={13} /> Section break</button>
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBlockquote().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><Quote size={13} /> Quote</button>
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleCodeBlock().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><Code size={13} /> Code block</button>
+            <button onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setHorizontalRule().run(); setShowInsertMenu(false); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><Minus size={13} /> Divider</button>
             <div className="h-px bg-line my-1" />
-            <button onClick={handleImageUpload} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><ImageIcon size={13} /> Image</button>
-            <button onClick={openLinkPopover} type="button" className="w-full flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2 text-left"><LinkIcon size={13} /> Embed link</button>
+            <button onMouseDown={(e) => { e.preventDefault(); handleImageUpload(); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><ImageIcon size={13} /> Image</button>
+            <button onMouseDown={(e) => { e.preventDefault(); openLinkPopover(e as any); }} type="button" className="w-full flex items-center gap-3 px-3 py-2 hover:bg-panel-2 text-left"><LinkIcon size={13} /> Embed link</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Link URL Popover ───────────────────────────────────── */}
@@ -362,7 +404,7 @@ export default function RichTextEditor({ value, onChange, placeholder, users = [
           <div className="px-3 py-2 text-[10px] font-bold text-muted uppercase tracking-wider border-b border-line flex items-center gap-1.5">
             <AtSign size={10} /> Mention a user
           </div>
-          <div className="overflow-y-auto max-h-[180px] py-1" style={{ scrollbarWidth: 'thin' }}>
+          <div className="overflow-y-auto max-h-[320px] py-1" style={{ scrollbarWidth: 'thin' }}>
             {filteredUsers.map((u, i) => (
               <button
                 key={u.id}
@@ -392,22 +434,24 @@ export default function RichTextEditor({ value, onChange, placeholder, users = [
         <EditorContent editor={editor} />
 
         {/* Bottom Toolbar */}
-        <div className="px-2 py-1.5 flex items-center bg-panel-2/40 border-t border-line/50">
+        <div className="px-2 py-1.5 flex items-center justify-between bg-panel-2/40 border-t border-line/50">
           <div className="flex items-center gap-0.5 text-muted">
             {/* Insert */}
             <button
+              ref={insertBtnRef}
               type="button"
               className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${showInsertMenu ? 'bg-line/50 text-text' : 'hover:bg-line/30 hover:text-text'}`}
-              onClick={(e) => { e.preventDefault(); setShowInsertMenu(!showInsertMenu); setShowFormatMenu(false); setShowLinkPopover(false); }}
+              onMouseDown={openInsert}
               title="Insert block"
             >
               <Plus size={14} />
             </button>
             {/* Format */}
             <button
+              ref={formatBtnRef}
               type="button"
               className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${showFormatMenu ? 'bg-line/50 text-text' : 'hover:bg-line/30 hover:text-text'}`}
-              onClick={(e) => { e.preventDefault(); setShowFormatMenu(!showFormatMenu); setShowInsertMenu(false); setShowLinkPopover(false); }}
+              onMouseDown={openFormat}
               title="Format text"
             >
               <Type size={14} />
@@ -443,6 +487,11 @@ export default function RichTextEditor({ value, onChange, placeholder, users = [
               <LinkIcon size={14} />
             </button>
           </div>
+          {actionButton && (
+            <div className="flex items-center">
+              {actionButton}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useScheduler } from "../../context/SchedulerContext";
 import { Plus, Hash, X, Loader2, Sparkles, Lock, Edit2, Trash2, Eye, ChevronLeft, ChevronRight, AlertCircle, Clock, LayoutList, Check, LayoutDashboard, Users, FileText, Search } from "lucide-react";
 import Input from "../../components/Input";
@@ -19,9 +20,11 @@ export default function TasksPage() {
 
     // Modal states
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+
+    const searchParams = useSearchParams();
+    const router = useRouter();
 
     // Form states
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,8 +41,6 @@ export default function TasksPage() {
         dueDate: "", assignedTo: [] as string[], priority: priorities[1], notes: ""
     });
 
-    const [viewingTask, setViewingTask] = useState<any>(null);
-
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
@@ -52,6 +53,20 @@ export default function TasksPage() {
     }, [briefs, currentPage]);
 
     const totalPages = Math.ceil(briefs.length / itemsPerPage);
+
+    // Auto-open task if taskId is present in URL
+    useEffect(() => {
+        const taskIdFromUrl = searchParams.get("taskId");
+        if (taskIdFromUrl && briefs.length > 0) {
+            const task = briefs.find((b: any) => String(b.id) === taskIdFromUrl);
+            if (task) {
+                router.push(`/tasks/${task.id}`);
+            }
+            // Remove the query param to avoid re-opening on reload or navigation
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, [searchParams, briefs]);
 
     const resetForm = () => {
         setFormData({
@@ -101,8 +116,7 @@ export default function TasksPage() {
     };
 
     const openViewModal = (task: any) => {
-        setViewingTask(task);
-        setIsViewModalOpen(true);
+        router.push(`/tasks/${task.id}`);
     };
 
     const handleDelete = (taskId: string) => {
@@ -264,7 +278,8 @@ export default function TasksPage() {
                         copy: formData.copy,
                         platforms: finalPlatforms,
                         hashtags: finalHashtags,
-                        assignedTo: formData.assignedTo
+                        assignedTo: formData.assignedTo.length > 0 ? formData.assignedTo[0] : "",
+                        assignedToMulti: formData.assignedTo
                     } : b)
                 }));
                 toast.success("Task updated successfully!");
@@ -287,7 +302,8 @@ export default function TasksPage() {
                             tone: data.task.tone || "",
                             notes: data.task.notes || "",
                             dueDate: data.task.due_date ? new Date(data.task.due_date).toISOString().slice(0, 10) : "",
-                            assignedTo: formData.assignedTo,
+                            assignedTo: formData.assignedTo.length > 0 ? formData.assignedTo[0] : "",
+                            assignedToMulti: formData.assignedTo,
                             assignedToName: "",
                             assignedToEmail: "",
                             priority: data.task.priority === "high" || data.task.priority === "urgent" ? "Urgent" : (data.task.priority === "low" ? "Low" : "Normal"),
@@ -702,171 +718,6 @@ export default function TasksPage() {
                     </div>
                 </form>
             </Modal>
-
-            {/* VIEW MODAL (SlideOver) */}
-            <SlideOver isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} width="max-w-[700px] w-full">
-                {viewingTask && (
-                    <div className="flex flex-col h-full bg-panel">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-                            <h2 className="text-xl font-bold m-0 text-text">Task Details</h2>
-                            <button onClick={() => setIsViewModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded hover:bg-panel-2 text-muted transition-colors"><X size={18} /></button>
-                        </div>
-                        <div className="p-6 md:p-8 overflow-y-auto">
-                            <h1 className="text-3xl font-black text-text mb-6 tracking-tight">{viewingTask.title}</h1>
-                            <div className="grid grid-cols-[120px_1fr] gap-y-4 mb-8 text-sm">
-                                <div className="text-muted font-medium h-8 flex items-center">Assignee</div>
-                                <div className="min-h-8 flex items-center font-bold text-text py-1">
-                                    {(() => {
-                                        // Prefer direct backend name fields first
-                                        if (viewingTask.assignedToName) {
-                                            return (
-                                                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-panel-2 border border-line text-xs">
-                                                    <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold">
-                                                        {viewingTask.assignedToName.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <span className="font-semibold">{viewingTask.assignedToName}</span>
-                                                    {viewingTask.assignedToEmail && <span className="text-muted ml-1">({viewingTask.assignedToEmail})</span>}
-                                                </span>
-                                            );
-                                        }
-                                        const assignedIds = Array.isArray(viewingTask.assignedTo) ? viewingTask.assignedTo : (viewingTask.assignedTo ? [viewingTask.assignedTo] : []);
-                                        const assignees = assignedIds.map((id: string) => users.find((u: any) => u.id === id)).filter(Boolean);
-                                        if (assignees.length === 0) return <span className="text-muted">Unassigned</span>;
-                                        return (
-                                            <div className="flex flex-wrap gap-2">
-                                                {assignees.map((a: any) => (
-                                                    <span key={a.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-panel-2 border border-line text-xs">
-                                                        <div className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[8px] font-bold">
-                                                            {a.avatar || "U"}
-                                                        </div>
-                                                        {a.name}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-
-                                <div className="text-muted font-medium h-8 flex items-center">Due Date</div>
-                                <div className="h-8 flex items-center font-bold text-text gap-1.5"><Clock size={16} className="text-muted" />{formatDate(viewingTask.dueDate)}</div>
-
-                                <div className="text-muted font-medium h-8 flex items-center">Status</div>
-                                <div className="h-8 flex items-center"><span className={`px-2 py-1 rounded text-[11px] font-extrabold uppercase border ${getStatusColor(viewingTask.status)}`}>{viewingTask.status.replace("_", " ")}</span></div>
-
-                                <div className="text-muted font-medium h-8 flex items-center">Priority</div>
-                                <div className="h-8 flex items-center">
-                                    <span className={`px-2 py-1 rounded text-[11px] font-extrabold uppercase border ${viewingTask.priority === "Urgent" ? "bg-danger/10 text-danger border-danger/20" :
-                                            viewingTask.priority === "Low" ? "bg-muted/10 text-muted border-line" :
-                                                "bg-warning/10 text-warning border-warning/20"
-                                        }`}>{viewingTask.priority}</span>
-                                </div>
-
-                                {viewingTask.tone && (
-                                    <>
-                                        <div className="text-muted font-medium h-8 flex items-center">Tone</div>
-                                        <div className="h-8 flex items-center font-bold text-text">{viewingTask.tone}</div>
-                                    </>
-                                )}
-
-                                <div className="text-muted font-medium min-h-8 flex items-center py-1">Platforms</div>
-                                <div className="flex flex-wrap items-center gap-1.5 min-h-8 py-1">
-                                    {viewingTask.platforms?.length > 0 ? viewingTask.platforms.map((p: string) => (
-                                        <span key={p} className="inline-flex items-center rounded-md px-2 py-1 text-white text-[11px] font-bold shadow-sm bg-primary">{p}</span>
-                                    )) : <span className="text-muted">None selected</span>}
-                                </div>
-
-                                {viewingTask.hashtags?.length > 0 && (
-                                    <>
-                                        <div className="text-muted font-medium min-h-8 flex items-center py-1">Hashtags</div>
-                                        <div className="flex flex-wrap items-center gap-1.5 min-h-8 py-1">
-                                            {viewingTask.hashtags.map((h: string) => (
-                                                <span key={h} className="text-[11px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded-md">{h}</span>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-
-                                <div className="text-muted font-medium h-8 flex items-center">Created By</div>
-                                <div className="h-8 flex items-center text-text text-sm font-semibold">
-                                    {viewingTask.createdByName || viewingTask.createdBy || "—"}
-                                </div>
-
-                                <div className="text-muted font-medium h-8 flex items-center">Created</div>
-                                <div className="h-8 flex items-center text-text text-sm">
-                                    {new Date(viewingTask.createdAt || Date.now()).toLocaleString()}
-                                </div>
-                            </div>
-
-                            <div className="mb-8">
-                                <h3 className="font-bold text-base text-text mb-3">Content Copy</h3>
-                                <div className="bg-panel-2 border border-line rounded-lg p-4">
-                                    <p className="text-[15px] whitespace-pre-wrap leading-relaxed m-0 font-medium text-text">{viewingTask.copy}</p>
-                                </div>
-                            </div>
-
-                            {viewingTask.notes && viewingTask.notes.replace(/<[^>]*>/g, '').trim() && (
-                                <div className="mb-8">
-                                    <h3 className="font-bold text-base text-text mb-3 flex items-center gap-2">Notes for Assignee <AlertCircle size={14} className="text-warning" /></h3>
-                                    <div className="bg-panel border border-line rounded-xl overflow-hidden">
-                                        <style dangerouslySetInnerHTML={{
-                                            __html: `
-                                            .notes-preview img {
-                                                max-width: 100%;
-                                                height: auto;
-                                                border-radius: 0.5rem;
-                                                margin: 0.75rem 0;
-                                                display: block;
-                                            }
-                                            .notes-preview h1 { font-size: 1.4rem; font-weight: 800; margin: 0.75rem 0 0.5rem; }
-                                            .notes-preview h2 { font-size: 1.15rem; font-weight: 700; margin: 0.75rem 0 0.5rem; }
-                                            .notes-preview p { margin: 0.25rem 0; }
-                                            .notes-preview ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
-                                            .notes-preview ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
-                                            .notes-preview li { margin: 0.2rem 0; }
-                                            .notes-preview strong { font-weight: 700; }
-                                            .notes-preview em { font-style: italic; }
-                                            .notes-preview u { text-decoration: underline; }
-                                            .notes-preview s { text-decoration: line-through; }
-                                            .notes-preview pre { background: rgba(0,0,0,0.2); border-radius: 0.4rem; padding: 0.75rem 1rem; font-family: monospace; font-size: 0.85em; white-space: pre-wrap; margin: 0.5rem 0; }
-                                            .notes-preview code { background: rgba(0,0,0,0.2); border-radius: 0.25rem; padding: 0.1em 0.3em; font-family: monospace; font-size: 0.85em; }
-                                            .notes-preview blockquote { border-left: 3px solid var(--primary, #6366f1); padding-left: 1rem; margin: 0.5rem 0; opacity: 0.8; }
-                                            .notes-preview a { color: var(--primary, #6366f1); text-decoration: underline; }
-                                            .notes-preview hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.75rem 0; }
-                                        `}} />
-                                        <div
-                                            className="notes-preview text-sm text-text leading-relaxed p-5"
-                                            dangerouslySetInnerHTML={{ __html: viewingTask.notes }}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {viewingTask.visualReference && (
-                                <div className="mb-8">
-                                    <h3 className="font-bold text-base text-text mb-3">Visual Reference</h3>
-                                    <div className="flex">
-                                        <a
-                                            href={viewingTask.visualReference}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-3 p-3 rounded-lg border border-line bg-panel-2 hover:bg-line/30 transition-colors max-w-sm"
-                                        >
-                                            <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                                <span className="font-bold">URL</span>
-                                            </div>
-                                            <div className="overflow-hidden">
-                                                <div className="text-sm font-bold text-text truncate">External Link</div>
-                                                <div className="text-xs text-primary hover:underline truncate mt-0.5">{viewingTask.visualReference}</div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                            )}
-                            <TaskComments taskId={viewingTask.id} />
-                        </div>
-                    </div>
-                )}
-            </SlideOver>
 
             {/* DELETE CONFIRMATION MODAL */}
             <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Task" maxWidth="max-w-md">

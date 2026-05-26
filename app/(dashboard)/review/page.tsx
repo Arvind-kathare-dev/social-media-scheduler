@@ -1,38 +1,39 @@
 "use client";
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Check, AlertCircle, ExternalLink, Hash, Clock, Lock, Image as ImageIcon, MessageSquare } from "lucide-react";
+import {
+  Check, Clock, Lock, Image as ImageIcon, Eye, RotateCcw,
+  Hash, AlertTriangle, Layers, ArrowRight, CheckCircle2, RefreshCcw
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ReviewPage() {
   const { store, updateStore, currentUser, users } = useScheduler();
+  const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  
+
   const isAllowed = currentUser.role === "admin";
 
-  // Get tasks that are ready for review (uploaded) or currently in revision
   const reviewTasks = useMemo(() => {
     return store.briefs.filter((b: any) => b.status === "uploaded" || b.status === "revision");
   }, [store.briefs]);
+
+  const readyCount = reviewTasks.filter((t: any) => t.status === "uploaded").length;
+  const revisionCount = reviewTasks.filter((t: any) => t.status === "revision").length;
 
   const handleStatusUpdate = async (taskId: string, newStatus: string) => {
     setLoadingId(taskId);
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
-      
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
       const res = await fetch(`${apiUrl}/tasks/${taskId}/status`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus })
       });
-      
       if (res.ok) {
-        // Optimistic UI update
         updateStore((prev: any) => ({
           ...prev,
           briefs: prev.briefs.map((b: any) => b.id === taskId ? { ...b, status: newStatus } : b)
@@ -41,243 +42,268 @@ export default function ReviewPage() {
       } else {
         toast.error("Failed to update task status");
       }
-    } catch (err) {
-      console.error("Failed to update status", err);
+    } catch {
       toast.error("Failed to update status");
     } finally {
       setLoadingId(null);
     }
   };
 
-  const platformMeta: any = {
-    "Instagram Feed": { icon: "IG", color: "var(--ig)" },
-    "Instagram Story/Reel": { icon: "IR", color: "var(--ig)" },
-    Facebook: { icon: "FB", color: "var(--fb)" },
-    "X (Twitter)": { icon: "X", color: "var(--x)" },
-    LinkedIn: { icon: "IN", color: "var(--li)" },
-    Pinterest: { icon: <Hash size={14} />, color: "var(--pin)" },
-    "YouTube Shorts": { icon: "YT", color: "var(--yt)" },
+  const platformColors: Record<string, string> = {
+    "Instagram Feed": "#E1306C",
+    "Instagram Story/Reel": "#C13584",
+    Facebook: "#1877F2",
+    "X (Twitter)": "#1DA1F2",
+    LinkedIn: "#0077B5",
+    Pinterest: "#E60023",
+    "YouTube Shorts": "#FF0000",
   };
 
   const formatDate = (value: string) => {
-    if (!value) return "";
-    return new Date(`${value}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+    if (!value) return "No due date";
+    const d = new Date(`${value}T00:00:00`);
+    return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const isOverdue = (dueDate: string) => {
+    if (!dueDate) return false;
+    return new Date(`${dueDate}T00:00:00`) < new Date();
   };
 
   if (!isAllowed) {
     return (
-      <div className="max-w-4xl mx-auto text-center py-20 text-muted">
-        <Lock className="mx-auto mb-4" size={48} />
-        <h2 className="text-xl font-bold text-text">Access Denied</h2>
-        <p>You do not have permission to review tasks.</p>
+      <div className="max-w-4xl mx-auto flex flex-col items-center justify-center text-center py-32 gap-4">
+        <div className="w-20 h-20 rounded-full bg-danger/10 flex items-center justify-center mb-2">
+          <Lock size={36} className="text-danger" />
+        </div>
+        <h2 className="text-2xl font-black text-text">Access Restricted</h2>
+        <p className="text-muted max-w-sm">You don&apos;t have the permissions to view the review queue. Contact your admin.</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto h-full flex flex-col">
-      <div className="page-title mb-8">
-        <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight">Review Queue</h1>
-        <p className="text-muted text-sm mt-2 max-w-xl">
-          Review content that has been marked as uploaded. Approve them for publishing or request revisions from the assignee.
-        </p>
+    <div className="max-w-5xl mx-auto flex flex-col gap-8 pb-10">
+
+      {/* ── Header ── */}
+      <div className="relative bg-panel border border-line rounded-3xl p-7 overflow-hidden shadow-sm">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute -top-10 -right-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5">
+          <div>
+            <h1 className="text-3xl font-black text-text tracking-tight mb-1">Review Queue</h1>
+            <p className="text-muted text-sm max-w-md leading-relaxed">
+              Approve submitted content for publishing, or send it back for revisions.
+            </p>
+          </div>
+
+          {/* Stats pills */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5 bg-primary/8 border border-primary/20 text-primary px-4 py-2.5 rounded-2xl">
+              <Layers size={16} />
+              <span className="text-sm font-extrabold">{readyCount}</span>
+              <span className="text-xs font-bold opacity-70">Pending</span>
+            </div>
+            {revisionCount > 0 && (
+              <div className="flex items-center gap-2.5 bg-warning/10 border border-warning/20 text-warning px-4 py-2.5 rounded-2xl">
+                <RefreshCcw size={16} />
+                <span className="text-sm font-extrabold">{revisionCount}</span>
+                <span className="text-xs font-bold opacity-70">In Revision</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-6">
-        {reviewTasks.length === 0 ? (
-          <div className="empty min-h-[300px] flex flex-col items-center justify-center text-center border-2 border-dashed border-strong-line rounded-xl p-8 bg-panel">
-            <Check size={48} className="text-ok mb-4 opacity-50" />
-            <h3 className="text-xl font-bold text-text mb-2">All caught up!</h3>
-            <p className="text-muted text-sm max-w-md">There are no tasks currently waiting for your review. Great job keeping the queue clear!</p>
+      {/* ── Task List ── */}
+      {reviewTasks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-[340px] bg-panel border-2 border-dashed border-line rounded-3xl text-center gap-4 p-10">
+          <div className="w-20 h-20 rounded-full bg-ok/10 flex items-center justify-center">
+            <CheckCircle2 size={36} className="text-ok" />
           </div>
-        ) : (
-          reviewTasks.map((task: any) => {
-            const assignee = users.find((u: any) => u.id === task.assignedTo);
+          <div>
+            <h3 className="text-xl font-black text-text mb-1">You&apos;re all caught up!</h3>
+            <p className="text-muted text-sm max-w-xs mx-auto">No content is waiting for review right now. Great work keeping the queue clear.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {reviewTasks.map((task: any) => {
+            const assignedIds = (Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0)
+              ? task.assignedToMulti
+              : task.assignedTo ? [task.assignedTo] : [];
+            const assignees = assignedIds.map((tid: string) => users.find((u: any) => u.id === tid)).filter(Boolean);
             const isRevision = task.status === "revision";
-            
+            const taskUploads = (store.uploads || []).filter((u: any) => u.briefId === task.id);
+            const totalAssets = taskUploads.reduce((acc: number, u: any) => acc + (u.files?.length || 0), 0);
+            const overdue = isOverdue(task.dueDate);
+
+            const priorityConfig: Record<string, { cls: string; dot: string }> = {
+              Urgent:  { cls: "bg-danger/10 text-danger border border-danger/20",  dot: "bg-danger" },
+              High:    { cls: "bg-warning/10 text-warning border border-warning/20", dot: "bg-warning" },
+              Medium:  { cls: "bg-primary/10 text-primary border border-primary/20", dot: "bg-primary" },
+              Low:     { cls: "bg-ok/10 text-ok border border-ok/20",              dot: "bg-ok" },
+            };
+            const pConf = priorityConfig[task.priority] || { cls: "bg-panel-2 text-muted border border-line", dot: "bg-muted" };
+
             return (
-              <div key={task.id} className={`bg-panel border rounded-xl overflow-hidden shadow-sm transition-all duration-200 ${isRevision ? 'border-warning/50 shadow-warning/5' : 'border-line hover:shadow-md hover:border-strong-line'}`}>
-                {/* Header */}
-                <div className={`p-4 border-b flex flex-wrap justify-between items-center gap-4 ${isRevision ? 'bg-warning/5 border-warning/20' : 'bg-panel-2/30 border-line'}`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-widest rounded-md ${
-                      isRevision ? 'bg-warning text-white shadow-sm' : 'bg-primary/10 text-primary border border-primary/20'
+              <div
+                key={task.id}
+                className={`group relative bg-panel border rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 ${
+                  isRevision
+                    ? "border-warning/30 shadow-warning/5 shadow-md"
+                    : "border-line hover:border-primary/30"
+                }`}
+              >
+                {/* Left accent bar */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-3xl ${isRevision ? "bg-warning" : "bg-primary"}`} />
+
+                <div className="pl-5 pr-6 py-5 flex flex-col lg:flex-row items-stretch gap-5">
+
+                  {/* ── Submitter ── */}
+                  <div className="flex items-center gap-3.5 min-w-[180px] shrink-0">
+                    <div className={`relative w-12 h-12 rounded-2xl text-white font-black flex items-center justify-center text-base shadow-md shrink-0 ${
+                      isRevision
+                        ? "bg-gradient-to-br from-warning to-orange-500"
+                        : "bg-gradient-to-br from-primary to-emerald-500"
                     }`}>
-                      {isRevision ? 'In Revision' : 'Ready for Review'}
-                    </span>
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-muted uppercase tracking-wider">
-                      <Clock size={14} />
-                      Due: {formatDate(task.dueDate) || "No due date"}
+                      {assignees[0]?.name?.charAt(0)?.toUpperCase() || "U"}
+                      {/* Online dot */}
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-ok border-2 border-panel rounded-full" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-0.5">Submitted By</p>
+                      <p className="text-sm font-extrabold text-text leading-tight truncate">{assignees[0]?.name || "Unassigned"}</p>
+                      <p className="text-[11px] font-semibold text-muted capitalize mt-0.5">{assignees[0]?.role || "Team Member"}</p>
                     </div>
                   </div>
-                  
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleStatusUpdate(task.id, 'revision')} 
-                      disabled={loadingId === task.id || isRevision}
-                      className="btn ghost text-warning hover:bg-warning/10 hover:border-warning/30 px-4 transition-colors disabled:opacity-50"
-                    >
-                      <AlertCircle size={16} /> Request Revision
-                    </button>
-                    <button 
-                      onClick={() => handleStatusUpdate(task.id, 'approved')} 
-                      disabled={loadingId === task.id}
-                      className="btn bg-ok text-white hover:bg-ok/90 px-5 shadow-sm transition-transform active:scale-95 disabled:opacity-50"
-                    >
-                      <Check size={16} /> {loadingId === task.id ? 'Saving...' : 'Approve Content'}
-                    </button>
-                  </div>
-                </div>
 
-                {/* Body */}
-                <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Left Col: Details */}
-                  <div className="lg:col-span-2 flex flex-col gap-5">
-                    <div>
-                      <h3 className="text-2xl font-black text-text mb-2 tracking-tight">{task.title}</h3>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        {task.platforms?.map((p: string) => (
-                          <span 
-                            key={p} 
-                            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-white text-[11px] font-bold tracking-wide" 
-                            style={{ background: platformMeta[p]?.color || "var(--primary)" }}
+                  {/* ── Divider ── */}
+                  <div className="hidden lg:block w-px bg-line/60 shrink-0" />
+
+                  {/* ── Task Info ── */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
+
+                    {/* Status + Due */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-lg ${
+                        isRevision
+                          ? "bg-warning text-white"
+                          : "bg-primary/10 text-primary border border-primary/20"
+                      }`}>
+                        {isRevision ? <RefreshCcw size={10} /> : <Layers size={10} />}
+                        {isRevision ? "In Revision" : "Ready for Review"}
+                      </span>
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold rounded-lg px-2.5 py-1 ${
+                        overdue ? "bg-danger/10 text-danger border border-danger/20" : "text-muted"
+                      }`}>
+                        {overdue && <AlertTriangle size={11} />}
+                        <Clock size={11} />
+                        {formatDate(task.dueDate)}
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h2
+                      onClick={() => router.push(`/tasks/${task.id}`)}
+                      className="text-base font-black text-text hover:text-primary transition-colors cursor-pointer truncate leading-snug"
+                    >
+                      {task.title}
+                    </h2>
+
+                    {/* Platforms */}
+                    {task.platforms && task.platforms.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {task.platforms.map((p: string) => (
+                          <span
+                            key={p}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-[10px] font-bold"
+                            style={{ background: platformColors[p] || "var(--primary)" }}
                           >
-                            {platformMeta[p]?.icon || p} <span className="ml-1">{p}</span>
+                            {p}
                           </span>
                         ))}
                       </div>
-                    </div>
-
-                    <div className="bg-panel-2 p-5 rounded-lg border border-line">
-                      <span className="text-[11px] font-extrabold text-muted uppercase tracking-widest block mb-3">Brief / Content Copy</span>
-                      <p className="text-text whitespace-pre-wrap text-[15px] leading-relaxed m-0 font-medium">
-                        {task.copy || <span className="text-muted italic font-normal">No content copy provided.</span>}
-                      </p>
-                    </div>
-
-                    {task.visualReference && (
-                      <div className="flex items-center gap-3 p-4 rounded-lg border border-line/50 bg-panel-2/50">
-                        <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                          <ExternalLink size={20} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[11px] font-extrabold text-muted uppercase tracking-widest block mb-0.5">Reference Link</span>
-                          <a href={task.visualReference} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline truncate block">
-                            {task.visualReference}
-                          </a>
-                        </div>
-                      </div>
                     )}
-
-                    {/* Submitted Work Section */}
-                    {store.uploads?.filter((u: any) => u.briefId === task.id).map((upload: any, idx: number) => (
-                      <div key={upload.id || idx} className="bg-primary/5 border border-primary/20 rounded-xl p-5 shadow-sm">
-                        <span className="text-[11px] font-extrabold text-primary uppercase tracking-widest mb-4 flex items-center gap-1.5">
-                          <Check size={14} strokeWidth={3} /> Submitted Work {idx > 0 ? `(Revision ${idx + 1})` : ''}
-                        </span>
-                        
-                        <div className="flex flex-col gap-3">
-                          {upload.files?.map((f: any, fIdx: number) => (
-                            <a 
-                              key={fIdx} 
-                              href={f.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="flex items-center gap-4 p-4 bg-panel border border-primary/10 hover:border-primary/40 rounded-lg transition-colors group"
-                            >
-                              <div className="w-12 h-12 bg-panel-2 rounded flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
-                                <ImageIcon size={24} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-bold text-text truncate group-hover:text-primary transition-colors m-0">
-                                  {f.name || "Design Asset"}
-                                </h4>
-                                <span className="text-xs text-muted font-medium mt-0.5 inline-block bg-panel-2 px-2 py-0.5 rounded">
-                                  {f.platform}
-                                </span>
-                              </div>
-                              <ExternalLink size={16} className="text-muted group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </a>
-                          ))}
-
-                          {upload.designerNote && (
-                            <div className="mt-2 bg-panel p-4 rounded-lg border border-line flex gap-3">
-                              <MessageSquare size={16} className="text-muted shrink-0 mt-0.5" />
-                              <div className="text-sm text-text">
-                                <span className="font-bold text-xs text-muted block mb-1 uppercase tracking-wider">Designer's Note</span>
-                                <p className="m-0 leading-relaxed">{upload.designerNote}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
                   </div>
 
-                  {/* Right Col: Meta */}
-                  <div className="flex flex-col gap-6 pl-0 lg:pl-6 lg:border-l border-line/50">
-                    <div>
-                      <span className="text-[11px] font-extrabold text-muted uppercase tracking-widest block mb-3">Assigned Developer/Designer</span>
-                      <div className="flex items-center gap-3 p-3 rounded-lg border border-line bg-panel-2/50">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white font-bold flex items-center justify-center text-sm shadow-sm ring-2 ring-panel shrink-0">
-                          {assignee?.avatar || "U"}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-text leading-tight">{assignee?.name || "Unassigned"}</span>
-                          <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">{assignee?.role || "Team Member"}</span>
-                        </div>
-                      </div>
+                  {/* ── Divider ── */}
+                  <div className="hidden lg:block w-px bg-line/60 shrink-0" />
+
+                  {/* ── Meta Chips ── */}
+                  <div className="flex flex-row lg:flex-col items-center lg:items-start justify-start gap-3 shrink-0 min-w-[120px]">
+                    {/* Priority */}
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest hidden lg:block">Priority</p>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider ${pConf.cls}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${pConf.dot}`} />
+                        {task.priority || "Normal"}
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-[11px] font-extrabold text-muted uppercase tracking-widest block mb-2">Priority</span>
-                        <span className={`inline-block px-2.5 py-1 text-xs font-extrabold uppercase tracking-wider rounded-md ${
-                          task.priority === 'Low' ? 'bg-ok-bg text-ok' : 
-                          task.priority === 'Urgent' ? 'bg-danger-bg text-danger' : 
-                          'bg-panel-2 text-text border border-line'
-                        }`}>
-                          {task.priority || "Normal"}
-                        </span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-[11px] font-extrabold text-muted uppercase tracking-widest block mb-2">Tone</span>
-                        <span className="text-sm font-semibold text-text">{task.tone || "Not specified"}</span>
-                      </div>
+                    {/* Assets */}
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted">
+                      <ImageIcon size={13} />
+                      <span>{totalAssets} {totalAssets === 1 ? "asset" : "assets"}</span>
                     </div>
 
-                    {task.hashtags && task.hashtags.length > 0 && (
-                      <div>
-                        <span className="text-[11px] font-extrabold text-muted uppercase tracking-widest block mb-2">Hashtags</span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {task.hashtags.map((h: string) => (
-                            <span key={h} className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">
-                              {h}
-                            </span>
-                          ))}
-                        </div>
+                    {/* All assignees avatars if more than 1 */}
+                    {assignees.length > 1 && (
+                      <div className="flex -space-x-2">
+                        {assignees.slice(0, 4).map((a: any) => (
+                          <div
+                            key={a.id}
+                            title={`${a.name} (${a.role})`}
+                            className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-emerald-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-panel"
+                          >
+                            {a.name?.charAt(0).toUpperCase()}
+                          </div>
+                        ))}
+                        {assignees.length > 4 && (
+                          <div className="w-6 h-6 rounded-full bg-panel-2 border border-line text-muted text-[9px] font-bold flex items-center justify-center ring-2 ring-panel">
+                            +{assignees.length - 4}
+                          </div>
+                        )}
                       </div>
                     )}
-                    
-                    {task.notes && (
-                      <div className="mt-2">
-                        <span className="text-[11px] font-extrabold text-warning uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                          <AlertCircle size={12} /> Notes
-                        </span>
-                        <p className="text-xs text-text bg-warning/10 p-3 rounded-lg border border-warning/20 leading-relaxed m-0">
-                          {task.notes}
-                        </p>
-                      </div>
-                    )}
+                  </div>
+
+                  {/* ── Divider ── */}
+                  <div className="hidden lg:block w-px bg-line/60 shrink-0" />
+
+                  {/* ── Actions ── */}
+                  <div className="flex flex-row lg:flex-col items-center gap-2.5 shrink-0 justify-end lg:justify-center w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0">
+                    <button
+                      onClick={() => router.push(`/tasks/${task.id}`)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold border border-primary/20 hover:border-primary/40 transition-all w-full justify-center group/btn"
+                    >
+                      <Eye size={14} />
+                      Review Task
+                      <ArrowRight size={13} className="opacity-0 group-hover/btn:opacity-100 -ml-1 transition-all" />
+                    </button>
+                    <button
+                      onClick={() => handleStatusUpdate(task.id, "revision")}
+                      disabled={loadingId === task.id || isRevision}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-warning/10 hover:bg-warning/20 text-warning text-xs font-extrabold border border-warning/20 hover:border-warning/40 transition-all w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <RotateCcw size={14} />
+                      Request Revision
+                    </button>
+                    <button
+                      onClick={() => handleStatusUpdate(task.id, "approved")}
+                      disabled={loadingId === task.id}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ok hover:bg-ok/90 text-white text-xs font-extrabold shadow-sm shadow-ok/30 active:scale-95 transition-all w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Check size={14} strokeWidth={3} />
+                      {loadingId === task.id ? "Saving…" : "Approve"}
+                    </button>
                   </div>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }

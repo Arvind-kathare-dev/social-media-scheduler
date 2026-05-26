@@ -2,6 +2,8 @@
 
 import { useScheduler } from "../context/SchedulerContext";
 import TaskCard from "./TaskCard";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { CheckCircle2, Clock, AlertCircle, PlayCircle, Send } from "lucide-react";
 
@@ -19,6 +21,19 @@ export default function KanbanBoard({ title, isAssignedToMe = false }: any) {
         return false;
       })
     : store.briefs;
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [autoOpenTaskId, setAutoOpenTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tid = searchParams.get("taskId");
+    if (tid && briefs.length > 0) {
+      setAutoOpenTaskId(tid);
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams, briefs]);
 
   const cols = [
     { id: "todo", title: "To Do", icon: <CheckCircle2 size={16} />, color: "text-muted" },
@@ -126,7 +141,7 @@ export default function KanbanBoard({ title, isAssignedToMe = false }: any) {
                       onDragStart={(e) => handleDragStart(e, brief.id)}
                       className="cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-transform"
                     >
-                      <TaskCard brief={brief} user={creator} />
+                      <TaskCard brief={brief} user={creator} autoOpen={String(brief.id) === autoOpenTaskId} />
                     </div>
                   );
                 })}

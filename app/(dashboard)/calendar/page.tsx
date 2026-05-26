@@ -3,10 +3,11 @@
 import { useState, useMemo } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
 import { Calendar as CalendarIcon, List, Filter, ChevronLeft, ChevronRight, User, ExternalLink, Clock, AlertCircle, X, CheckCircle2 } from "lucide-react";
-import SlideOver from "../../components/SlideOver";
+import { useRouter } from "next/navigation";
 
 export default function CalendarPage() {
   const { store, currentUser, users } = useScheduler();
+  const router = useRouter();
   const [view, setView] = useState<"Month" | "Agenda">("Month");
   
   // Date states
@@ -32,10 +33,16 @@ export default function CalendarPage() {
     
     if (!isAdmin) {
       // Non-admins only see their own tasks
-      tasks = tasks.filter((t: any) => t.assignedTo === currentUser.id);
+      tasks = tasks.filter((t: any) => {
+        const multi = Array.isArray(t.assignedToMulti) ? t.assignedToMulti : [];
+        return String(t.assignedTo) === String(currentUser.id) || multi.some(id => String(id) === String(currentUser.id));
+      });
     } else if (selectedUserFilter !== "all") {
       // Admins can filter by specific user
-      tasks = tasks.filter((t: any) => t.assignedTo === selectedUserFilter);
+      tasks = tasks.filter((t: any) => {
+        const multi = Array.isArray(t.assignedToMulti) ? t.assignedToMulti : [];
+        return String(t.assignedTo) === String(selectedUserFilter) || multi.some(id => String(id) === String(selectedUserFilter));
+      });
     }
     
     return tasks;
@@ -186,7 +193,7 @@ export default function CalendarPage() {
                           return (
                             <div 
                               key={ev.id} 
-                              onClick={() => setSelectedTask(ev)}
+                              onClick={() => router.push(`/tasks/${ev.id}`)}
                               className={`group relative overflow-hidden text-[11px] font-semibold p-2 pl-3 border rounded-lg cursor-pointer hover:shadow-sm transition-all flex flex-col gap-1 ${getStatusColor(ev.status)}`}
                             >
                               <div className={`absolute left-0 top-0 bottom-0 w-1 opacity-70 ${
@@ -234,7 +241,7 @@ export default function CalendarPage() {
                   return (
                     <div 
                       key={task.id} 
-                      onClick={() => setSelectedTask(task)}
+                      onClick={() => router.push(`/tasks/${task.id}`)}
                       className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-5 p-5 rounded-2xl border cursor-pointer hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 overflow-hidden ${
                         isOverdue ? 'bg-danger/5 border-danger/30' : 'bg-panel border-line hover:border-strong-line'
                       }`}
@@ -310,164 +317,6 @@ export default function CalendarPage() {
           </div>
         )}
       </div>
-
-      {/* Task Details SlideOver (Asana Style) */}
-      <SlideOver 
-        isOpen={!!selectedTask} 
-        onClose={() => setSelectedTask(null)} 
-        width="max-w-[800px] w-full"
-      >
-        {selectedTask && (
-          <div className="flex flex-col h-full bg-panel">
-            {/* Top Action Bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-line shrink-0">
-              <div className="flex items-center gap-3">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-line text-sm font-semibold text-muted hover:bg-panel-2 transition-colors">
-                  <CheckCircle2 size={16} /> Mark complete
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                {users.find((u: any) => u.id === selectedTask.assignedTo) && (
-                  <div className="flex items-center gap-2 mr-2">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-xs font-bold shadow-sm">
-                      {users.find((u: any) => u.id === selectedTask.assignedTo)?.avatar || "U"}
-                    </div>
-                    <button className="px-3 py-1.5 rounded-md border border-line text-sm font-semibold text-text hover:bg-panel-2 transition-colors">
-                      Share
-                    </button>
-                  </div>
-                )}
-                <div className="w-[1px] h-6 bg-line mx-1"></div>
-                <button onClick={() => setSelectedTask(null)} className="w-8 h-8 flex items-center justify-center rounded hover:bg-panel-2 text-muted hover:text-text transition-colors">
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-6 md:p-8 max-w-[700px]">
-                <h1 className="text-3xl font-black text-text mb-8 tracking-tight flex items-start gap-3">
-                  {selectedTask.title}
-                </h1>
-
-                {/* Properties Grid */}
-                <div className="grid grid-cols-[140px_1fr] gap-y-4 mb-8 text-sm">
-                  {/* Assignee */}
-                  <div className="text-muted font-medium flex items-center h-8">Assignee</div>
-                  <div className="flex items-center h-8">
-                    <div className="flex items-center gap-2 px-2 -ml-2 rounded hover:bg-panel-2 cursor-pointer transition-colors">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
-                        {users.find((u: any) => u.id === selectedTask.assignedTo)?.avatar || "U"}
-                      </div>
-                      <span className="font-semibold text-text">{users.find((u: any) => u.id === selectedTask.assignedTo)?.name || "Unassigned"}</span>
-                    </div>
-                  </div>
-
-                  {/* Due Date */}
-                  <div className="text-muted font-medium flex items-center h-8">Due date</div>
-                  <div className="flex items-center h-8">
-                    <div className="flex items-center gap-2 px-2 -ml-2 rounded hover:bg-panel-2 cursor-pointer transition-colors font-semibold text-text">
-                      <Clock size={16} className="text-muted" />
-                      {new Date(selectedTask.dueDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                    </div>
-                  </div>
-
-                  {/* Priority */}
-                  <div className="text-muted font-medium flex items-center h-8">Priority</div>
-                  <div className="flex items-center h-8">
-                    <span className={`px-2 py-1 rounded-[5px] text-[11px] font-extrabold uppercase tracking-wider ${
-                      selectedTask.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' : 
-                      selectedTask.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' : 
-                      'bg-panel-2 text-text border border-line'
-                    }`}>
-                      {selectedTask.priority}
-                    </span>
-                  </div>
-
-                  {/* Status */}
-                  <div className="text-muted font-medium flex items-center h-8">Status</div>
-                  <div className="flex items-center h-8">
-                    <span className={`px-2 py-1 rounded-[5px] text-[11px] font-extrabold uppercase tracking-wider border ${getStatusColor(selectedTask.status)}`}>
-                      {getStatusLabel(selectedTask.status)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Description Section */}
-                <div className="mb-10">
-                  <h3 className="font-bold text-base text-text mb-3">Description</h3>
-                  <div className="bg-transparent border border-transparent hover:border-line rounded-lg p-2 -ml-2 transition-colors cursor-text group min-h-[100px]">
-                    <p className="text-[15px] text-text whitespace-pre-wrap leading-relaxed m-0 font-medium">
-                      {selectedTask.copy || <span className="text-muted">No description provided.</span>}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Platforms & Hashtags */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
-                  <div>
-                    <h3 className="font-bold text-base text-text mb-3">Platforms</h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedTask.platforms?.map((p: string) => (
-                        <span key={p} className="text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-md">{p}</span>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {selectedTask.hashtags && selectedTask.hashtags.length > 0 && (
-                    <div>
-                      <h3 className="font-bold text-base text-text mb-3">Hashtags</h3>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedTask.hashtags.map((h: string) => (
-                          <span key={h} className="text-[11px] font-bold bg-panel-2 border border-line text-text px-2 py-1 rounded-md">{h}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes Section */}
-                {selectedTask.notes && (
-                  <div className="mb-10">
-                    <h3 className="font-bold text-base text-text mb-3 flex items-center gap-2">
-                      Notes <AlertCircle size={14} className="text-warning" />
-                    </h3>
-                    <div className="bg-warning/5 border border-warning/20 rounded-lg p-4">
-                      <p className="text-[14px] text-text whitespace-pre-wrap leading-relaxed m-0">
-                        {selectedTask.notes}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Visual Reference */}
-                {selectedTask.visualReference && (
-                  <div className="mb-10">
-                    <h3 className="font-bold text-base text-text mb-3">Visual Reference</h3>
-                    <div className="flex">
-                      <a 
-                        href={selectedTask.visualReference} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="flex items-center gap-3 p-3 rounded-lg border border-line bg-panel-2 hover:bg-line/30 transition-colors max-w-sm"
-                      >
-                        <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                          <ExternalLink size={18} />
-                        </div>
-                        <div className="overflow-hidden">
-                          <div className="text-sm font-bold text-text truncate">View Asset Reference</div>
-                        </div>
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </SlideOver>
-
     </div>
   );
 }

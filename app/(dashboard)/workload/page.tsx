@@ -38,7 +38,10 @@ export default function WorkloadPage() {
 
   // Compute tasks for the selected user
   const selectedUserTasks = useMemo(() => {
-    return selectedUserId ? tasks.filter((t: any) => t.assignedTo === selectedUserId) : [];
+    return selectedUserId ? tasks.filter((t: any) => {
+      const multi = Array.isArray(t.assignedToMulti) ? t.assignedToMulti : [];
+      return t.assignedTo === selectedUserId || multi.includes(selectedUserId);
+    }) : [];
   }, [tasks, selectedUserId]);
 
   const completedTasks = selectedUserTasks.filter((t: any) => ['approved', 'completed', 'uploaded'].includes(t.status));
@@ -91,7 +94,10 @@ export default function WorkloadPage() {
       {/* Scalable Grid of User Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {teamUsers.map((u: any) => {
-          const uTasks = tasks.filter((t: any) => t.assignedTo === u.id);
+          const uTasks = tasks.filter((t: any) => {
+            const multi = Array.isArray(t.assignedToMulti) ? t.assignedToMulti : [];
+            return t.assignedTo === u.id || multi.includes(u.id);
+          });
           const uCompleted = uTasks.filter((t: any) => ['approved', 'completed', 'uploaded'].includes(t.status)).length;
           const uActive = uTasks.filter((t: any) => t.status === 'in_progress').length;
           const uPending = uTasks.filter((t: any) => ['todo', 'revision'].includes(t.status)).length;

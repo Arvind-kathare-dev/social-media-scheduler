@@ -7,7 +7,7 @@ import { SchedulerProvider, useScheduler } from "../context/SchedulerContext";
 import {
   LayoutDashboard, FileEdit, ListTodo, MessageSquareCheck,
   CalendarDays, Image as ImageIcon, Settings, UploadCloud,
-  Sun, Moon, Bell, Users, BarChart3
+  Sun, Moon, Bell, Users, BarChart3, Clock
 } from "lucide-react";
 
 const navByRole = {
@@ -63,6 +63,25 @@ function Topbar() {
     }
   };
 
+  const handleNotificationClick = (n: any) => {
+    setShowNotifications(false);
+    
+    // Redirect logic
+    if (n.task_id || n.taskId || n.brief_id) {
+        const tid = n.task_id || n.taskId || n.brief_id;
+        // Determine path based on role and notification type
+        let path = currentUser.role === 'admin' ? '/tasks' : '/my-tasks';
+        
+        if (n.type === 'new_message' || n.type === 'mention') {
+           // If it's a mention or review message, everyone might want to go to /review? Actually /tasks and /my-tasks also show comments.
+           // Admin goes to /tasks, designers/devs go to /my-tasks.
+           path = currentUser.role === 'admin' ? '/tasks' : '/my-tasks';
+        }
+        
+        router.push(`${path}?taskId=${tid}`);
+    }
+  };
+
   return (
     <header className="topbar flex items-center justify-between h-[68px] px-6 border-b border-line bg-panel/80 backdrop-blur-md sticky top-0 z-10">
       <div className="page-title min-w-0">
@@ -85,27 +104,33 @@ function Topbar() {
                     {unreadCount === 0 && <span className="text-xs text-muted font-medium">All caught up!</span>}
                 </div>
               {store.notifications && store.notifications.length > 0 ? (
-                store.notifications.map(n => (
-                  <div key={n.id} className={`p-3 border-b border-line last:border-0 text-sm transition-colors hover:bg-panel-2 cursor-pointer ${!n.is_read ? 'bg-primary/5' : ''}`}>
-                    <div className="flex gap-2.5 items-start">
+                store.notifications.map((n: any) => (
+                  <div 
+                    key={n.id} 
+                    onClick={() => handleNotificationClick(n)}
+                    className={`p-3.5 border-b border-line last:border-0 text-sm transition-all hover:bg-panel-2 cursor-pointer group relative overflow-hidden ${!n.is_read ? 'bg-primary/5' : ''}`}
+                  >
+                    {!n.is_read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>}
+                    <div className="flex gap-3 items-start">
                         {n.type === 'mention' ? (
-                            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                                <span className="font-bold text-sm">@</span>
+                            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary group-hover:text-white transition-colors shadow-sm">
+                                <span className="font-bold text-lg">@</span>
                             </div>
                         ) : n.type === 'task_assigned' ? (
-                            <div className="w-8 h-8 rounded-full bg-ok/20 text-ok flex items-center justify-center shrink-0 mt-0.5">
-                                <FileEdit size={14} />
+                            <div className="w-9 h-9 rounded-full bg-ok/10 text-ok flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-ok group-hover:text-white transition-colors shadow-sm">
+                                <FileEdit size={16} />
                             </div>
                         ) : (
-                            <div className="w-8 h-8 rounded-full bg-panel-2 text-text flex items-center justify-center shrink-0 border border-line mt-0.5">
-                                <MessageSquareCheck size={14} />
+                            <div className="w-9 h-9 rounded-full bg-panel-2 text-text flex items-center justify-center shrink-0 border border-line mt-0.5 group-hover:bg-text group-hover:text-panel transition-colors shadow-sm">
+                                <MessageSquareCheck size={16} />
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <div className="text-[13px] leading-snug break-words">
+                            <div className="text-[13.5px] leading-snug break-words text-text font-medium group-hover:text-primary transition-colors">
                                 {n.message}
                             </div>
-                            <div className="text-[11px] font-medium text-muted mt-1.5 uppercase tracking-wide">
+                            <div className="text-[11px] font-semibold text-muted mt-1.5 uppercase tracking-wide flex items-center gap-1.5">
+                                <Clock size={10} />
                                 {new Date(n.created_at || n.createdAt).toLocaleString(undefined, {
                                     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                                 })}

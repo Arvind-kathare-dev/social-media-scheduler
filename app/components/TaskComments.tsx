@@ -4,8 +4,8 @@ import { Send, MessageSquare, CornerDownRight, X } from "lucide-react";
 import toast from "react-hot-toast";
 import RichTextEditor from "./RichTextEditor";
 
-export default function TaskComments({ taskId }: { taskId: string }) {
-    const { currentUser, socket, users } = useScheduler();
+export default function TaskComments({ taskId, className = "mt-8 border-t border-line pt-6 flex flex-col h-[500px]" }: { taskId: string, className?: string }) {
+    const { currentUser, socket, users, store } = useScheduler();
     const [mentionDropdownOpen, setMentionDropdownOpen] = useState(false);
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState("");
@@ -183,27 +183,53 @@ export default function TaskComments({ taskId }: { taskId: string }) {
     const flatComments = flattenComments(comments);
 
     return (
-        <div className="mt-8 border-t border-line pt-6 flex flex-col h-[500px]">
-            <h3 className="font-bold text-base text-text mb-4 flex items-center gap-2 shrink-0">
-                <MessageSquare size={16} /> Live Chat
-            </h3>
+        <div className={className}>
+            {/* Only show heading in standalone/default mode */}
+            {!className.includes('px-') && (
+                <h3 className="font-bold text-base text-text mb-4 flex items-center gap-2 shrink-0">
+                    <MessageSquare size={16} /> Live Chat
+                </h3>
+            )}
 
-            <div className="flex-1 overflow-y-auto bg-panel rounded-xl border border-line p-4 mb-4 shadow-inner">
+            <div
+                className="flex-1 overflow-y-auto mb-3 pr-1"
+                style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'var(--line) transparent',
+                    scrollBehavior: 'smooth',
+                }}
+            >
+                <style>{`
+                  .chat-scroll-area::-webkit-scrollbar { width: 4px; }
+                  .chat-scroll-area::-webkit-scrollbar-track { background: transparent; }
+                  .chat-scroll-area::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+                  .chat-scroll-area::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+                `}</style>
+                <div className="chat-scroll-area h-full overflow-y-auto pr-1" style={{ scrollBehavior: 'smooth' }}>
                 {isLoading ? (
-                    <div className="h-full flex items-center justify-center text-muted text-sm py-4">Loading chat...</div>
+                    <div className="h-full flex items-center justify-center text-muted text-sm py-12">
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span className="text-xs font-semibold">Loading chat...</span>
+                        </div>
+                    </div>
                 ) : flatComments.length === 0 ? (
-                    <div className="h-full flex items-center justify-center flex-col gap-2 opacity-50">
-                        <MessageSquare size={32} />
-                        <p className="text-sm italic">No messages yet. Start the conversation!</p>
+                    <div className="h-full flex items-center justify-center flex-col gap-3 py-16 opacity-50">
+                        <div className="w-12 h-12 rounded-full bg-panel-2 border border-line flex items-center justify-center">
+                            <MessageSquare size={20} />
+                        </div>
+                        <p className="text-sm font-semibold">No messages yet</p>
+                        <p className="text-xs text-muted">Start the conversation!</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col justify-end min-h-full">
+                    <div className="flex flex-col gap-1 justify-end min-h-full">
                         {flatComments.map(c => renderChatBubble(c))}
                     </div>
                 )}
+                </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-2 mt-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-2 pt-3 border-t border-line shrink-0">
                 {replyTo && (
                     <div className="flex items-center gap-2 text-xs font-medium text-primary bg-primary/5 px-3 py-1.5 rounded-md border border-primary/20 w-fit">
                         <CornerDownRight size={12} />
@@ -213,20 +239,22 @@ export default function TaskComments({ taskId }: { taskId: string }) {
                         </button>
                     </div>
                 )}
-                <div className="relative border border-line rounded-xl bg-panel overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all shadow-sm pb-10">
+                <div className="relative pt-2">
                     <RichTextEditor 
                         value={newComment}
                         onChange={setNewComment}
                         placeholder="Write a comment or type @ to mention..."
-                        users={users.filter(u => u.id !== currentUser?.id)}
+                        users={store.users || users}
+                        actionButton={
+                            <button 
+                                type="submit" 
+                                disabled={!newComment.trim() || newComment === '<p></p>'}
+                                className="px-4 py-1.5 rounded-md bg-primary text-white flex items-center justify-center shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-bold"
+                            >
+                                Send <Send size={12} className="ml-1.5" />
+                            </button>
+                        }
                     />
-                    <button 
-                        type="submit" 
-                        disabled={!newComment.trim() || newComment === '<p></p>'}
-                        className="absolute bottom-2 right-2 px-3 py-1.5 rounded-lg bg-primary text-white flex items-center justify-center shadow-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-bold"
-                    >
-                        Send <Send size={12} className="ml-1.5" />
-                    </button>
                 </div>
             </form>
         </div>
