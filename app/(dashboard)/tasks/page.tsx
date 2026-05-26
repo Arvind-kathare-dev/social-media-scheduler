@@ -1,11 +1,12 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Plus, Hash, X, Loader2, Sparkles, Lock, Edit2, Trash2, Eye, ChevronLeft, ChevronRight, AlertCircle, Clock, LayoutList, Check } from "lucide-react";
+import { Plus, Hash, X, Loader2, Sparkles, Lock, Edit2, Trash2, Eye, ChevronLeft, ChevronRight, AlertCircle, Clock, LayoutList, Check, LayoutDashboard, Users, FileText, Search } from "lucide-react";
 import Input from "../../components/Input";
 import Modal from "../../components/Modal";
 import SlideOver from "../../components/SlideOver";
 import RichTextEditor from "../../components/RichTextEditor";
+import TaskComments from "../../components/TaskComments";
 import toast from "react-hot-toast";
 
 const tones = ["Professional", "Casual", "Witty", "Inspirational", "Promotional", "Educational"];
@@ -29,6 +30,7 @@ export default function TasksPage() {
     const [hashtagInput, setHashtagInput] = useState("");
     const [platforms, setPlatforms] = useState<string[]>([]);
     const [assigneeRole, setAssigneeRole] = useState("designer");
+    const [assigneeSearch, setAssigneeSearch] = useState("");
     const [isPost, setIsPost] = useState(true);
 
     const [formData, setFormData] = useState({
@@ -59,6 +61,7 @@ export default function TasksPage() {
         setPlatforms([]);
         setHashtags([]);
         setAssigneeRole("designer");
+        setAssigneeSearch("");
         setIsPost(true);
         setEditingTaskId(null);
     };
@@ -70,9 +73,15 @@ export default function TasksPage() {
 
     const openEditModal = (task: any) => {
         // Find assigned user's role if assignedTo exists
-        const assignedIds = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-        const assignedUserRole = assignedIds.length > 0 ? users.find((u: any) => u.id === assignedIds[0])?.role || "designer" : "designer";
+        const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0 
+            ? task.assignedToMulti.map(String) 
+            : [];
+        const assignedIds = multiAssignees.length > 0 
+            ? multiAssignees 
+            : (task.assignedTo ? [String(task.assignedTo)] : []);
         
+        const assignedUserRole = assignedIds.length > 0 ? users.find((u: any) => u.id === assignedIds[0])?.role || "designer" : "designer";
+
         setFormData({
             title: task.title || "",
             tone: task.tone || tones[0],
@@ -106,7 +115,7 @@ export default function TasksPage() {
 
         try {
             const token = localStorage.getItem("token");
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
             // Try API delete if applicable, otherwise optimistic UI
             if (token) {
@@ -166,14 +175,42 @@ export default function TasksPage() {
     };
 
     const handlePlatformChange = (platform: string) => {
-        setPlatforms(prev => 
+        setPlatforms(prev =>
             prev.includes(platform) ? prev.filter(p => p !== platform) : [...prev, platform]
         );
     };
 
+    const filteredAssignees = useMemo(() => {
+        return users.filter((u: any) => 
+            u.role === assigneeRole && 
+            u.name.toLowerCase().includes(assigneeSearch.toLowerCase())
+        );
+    }, [users, assigneeRole, assigneeSearch]);
+
+    const handleSelectAllAssignees = () => {
+        if (filteredAssignees.length === 0) return;
+        
+        const filteredIds = filteredAssignees.map((u: any) => u.id);
+        const allFilteredSelected = filteredIds.every((id: string) => formData.assignedTo.includes(id));
+        
+        if (allFilteredSelected) {
+            setFormData(prev => ({
+                ...prev,
+                assignedTo: prev.assignedTo.filter(id => !filteredIds.includes(id))
+            }));
+        } else {
+            setFormData(prev => {
+                const newAssigned = new Set([...prev.assignedTo, ...filteredIds]);
+                return { ...prev, assignedTo: Array.from(newAssigned) };
+            });
+        }
+    };
+    
+    const allFilteredSelected = filteredAssignees.length > 0 && filteredAssignees.every((u: any) => formData.assignedTo.includes(u.id));
+
     const handleSubmit = async (e: any) => {
         e.preventDefault();
-        
+
         if (assigneeRole === "designer" && isPost && platforms.length === 0) {
             toast.error("Select at least one platform for the post.");
             return;
@@ -186,11 +223,11 @@ export default function TasksPage() {
         setIsSubmitting(true);
         try {
             const token = localStorage.getItem("token");
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
             const finalPlatforms = (assigneeRole === "designer" && isPost) ? platforms : [];
             const finalHashtags = (assigneeRole === "designer" && isPost) ? hashtags : [];
-            
+
             // Backend currently takes a single assignee, so we'll pass the first one, or stringify if modified backend
             const parsedAssignee = formData.assignedTo.length > 0 ? parseInt(formData.assignedTo[0]) : null;
             const assigned_to_value = isNaN(parsedAssignee!) ? null : parsedAssignee;
@@ -348,9 +385,14 @@ export default function TasksPage() {
                             ) : (
                                 paginatedBriefs.map((task: any) => {
                                     // Parse assigned users
-                                    const assignedIds = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+                                    const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0 
+                                        ? task.assignedToMulti.map(String) 
+                                        : [];
+                                    const assignedIds = multiAssignees.length > 0 
+                                        ? multiAssignees 
+                                        : (task.assignedTo ? [String(task.assignedTo)] : []);
                                     const assignees = assignedIds.map((id: string) => users.find((u: any) => u.id === id)).filter(Boolean);
-                                    
+
                                     return (
                                         <tr key={task.id} className="hover:bg-panel-2/30 transition-colors group">
                                             <td className="px-6 py-4 font-semibold text-text max-w-[250px] truncate">
@@ -378,8 +420,8 @@ export default function TasksPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2.5 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider ${task.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' :
-                                                        task.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' :
-                                                            'bg-panel-2 text-text border border-line'
+                                                    task.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' :
+                                                        'bg-panel-2 text-text border border-line'
                                                     }`}>
                                                     {task.priority}
                                                 </span>
@@ -448,141 +490,214 @@ export default function TasksPage() {
 
             {/* CREATE / EDIT MODAL */}
             <Modal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} title={editingTaskId ? "Edit Task Brief" : "Create New Task"} maxWidth="max-w-3xl">
-                <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[75vh]">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="md:col-span-2">
-                            <Input label="Task Title" name="title" value={formData.title} onChange={handleChange} required placeholder="e.g. Summer Campaign Teaser" />
-                        </div>
+                <form onSubmit={handleSubmit} className="flex flex-col overflow-y-auto max-h-[85vh] relative bg-panel">
 
-                        <div className="md:col-span-2">
-                            <Input label="Content Copy" name="copy" type="textarea" value={formData.copy} onChange={handleChange} required placeholder="Write the exact text, captions, or descriptions for the post..." rows={4} />
-                        </div>
-
-                        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl border border-line bg-panel-2/30">
+                    <div className="p-6 sm:p-8 space-y-10">
+                        {/* SECTION: Overview */}
+                        <div className="space-y-5">
                             <div>
-                                <Input 
-                                    label="Role (Filter Users)" 
-                                    name="assigneeRole" 
-                                    type="select" 
-                                    value={assigneeRole} 
-                                    onChange={(e) => setAssigneeRole(e.target.value)} 
-                                    options={[
-                                        { label: "Designer", value: "designer" },
-                                        { label: "Developer", value: "developer" },
-                                        { label: "Editor", value: "editor" }
-                                    ]} 
-                                />
+                                <h3 className="text-[15px] font-semibold text-text">Task Details</h3>
+                                <p className="text-[13px] text-muted mt-0.5">Core information and copy for this task.</p>
                             </div>
+                            <div className="grid grid-cols-1 gap-5">
+                                <Input label="Task Title" name="title" value={formData.title} onChange={handleChange} required placeholder="e.g. Summer Campaign Teaser" />
+                                <Input label="Content Copy" name="copy" type="textarea" value={formData.copy} onChange={handleChange} required placeholder="Write the exact text, captions, or descriptions for the post..." rows={3} />
+                            </div>
+                        </div>
+
+                        <hr className="border-line" />
+
+                        {/* SECTION: Assignment & Scheduling */}
+                        <div className="space-y-5">
                             <div>
-                                <label className="block text-muted text-xs font-bold uppercase tracking-wider mb-2">Assign To (Multi-Select)</label>
-                                <div className="border border-line rounded-lg bg-panel max-h-[120px] overflow-y-auto p-2 flex flex-col gap-1">
-                                    {users.filter((u: any) => u.role === assigneeRole).length === 0 ? (
-                                        <div className="text-xs text-muted p-2 italic">No {assigneeRole}s found.</div>
-                                    ) : (
-                                        users.filter((u: any) => u.role === assigneeRole).map((u: any) => (
-                                            <label key={u.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-panel-2 rounded cursor-pointer transition-colors">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={formData.assignedTo.includes(u.id)}
-                                                    onChange={() => toggleAssignee(u.id)}
-                                                    className="rounded border-line text-primary focus:ring-primary/20"
-                                                />
-                                                <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold">
-                                                    {u.avatar || 'U'}
+                                <h3 className="text-[15px] font-semibold text-text">Assignment & Schedule</h3>
+                                <p className="text-[13px] text-muted mt-0.5">Assign team members and set deadlines.</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-5">
+                                    <Input
+                                        label="Role (Filter Users)"
+                                        name="assigneeRole"
+                                        type="select"
+                                        value={assigneeRole}
+                                        onChange={(e) => setAssigneeRole(e.target.value)}
+                                        options={[
+                                            { label: "Designer", value: "designer" },
+                                            { label: "Developer", value: "developer" },
+                                            { label: "Editor", value: "editor" }
+                                        ]}
+                                    />
+                                    <Input label="Due Date" type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
+                                    <Input label="Priority" name="priority" type="select" value={formData.priority} onChange={handleChange} options={priorities.map(p => ({ label: p, value: p }))} />
+                                </div>
+
+                                <div className="flex flex-col h-full">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-text text-[13px] font-semibold">Assign To (Multi-Select)</label>
+                                        {filteredAssignees.length > 0 && (
+                                            <button 
+                                                type="button" 
+                                                onClick={handleSelectAllAssignees}
+                                                className="text-[12px] font-semibold text-primary hover:text-primary/80 transition-colors"
+                                            >
+                                                {allFilteredSelected ? "Deselect All" : "Select All"}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="border border-line rounded-md bg-transparent flex-1 flex flex-col min-h-[200px] max-h-[260px]">
+                                        <div className="flex items-center gap-2 px-3 py-2 border-b border-line bg-panel-2/30">
+                                            <Search size={14} className="text-muted shrink-0" />
+                                            <input 
+                                                type="text" 
+                                                value={assigneeSearch}
+                                                onChange={(e) => setAssigneeSearch(e.target.value)}
+                                                placeholder={`Search ${assigneeRole}s...`}
+                                                className="w-full bg-transparent border-none outline-none text-[13px] text-text placeholder:text-muted/70"
+                                            />
+                                            {assigneeSearch && (
+                                                <button type="button" onClick={() => setAssigneeSearch("")} className="text-muted hover:text-text">
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="overflow-y-auto py-1 flex-1">
+                                            {filteredAssignees.length === 0 ? (
+                                                <div className="text-[13px] text-muted p-6 text-center">
+                                                    {assigneeSearch ? "No users match your search." : `No ${assigneeRole}s found.`}
                                                 </div>
-                                                <span className="text-sm text-text font-medium">{u.name}</span>
-                                            </label>
-                                        ))
-                                    )}
+                                            ) : (
+                                                filteredAssignees.map((u: any) => {
+                                                    const isSelected = formData.assignedTo.includes(u.id);
+                                                    return (
+                                                        <div 
+                                                            key={u.id} 
+                                                            onClick={() => toggleAssignee(u.id)}
+                                                            className={`flex items-center gap-3 px-3 py-2.5 mx-2 my-1 rounded-lg cursor-pointer transition-all border ${
+                                                                isSelected 
+                                                                ? 'bg-primary/5 border-primary/20 shadow-[0_1px_2px_rgba(0,0,0,0.02)]' 
+                                                                : 'border-transparent hover:bg-panel-2 hover:border-line/50'
+                                                            }`}
+                                                        >
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors ${
+                                                                isSelected ? 'bg-primary text-white shadow-sm' : 'bg-panel-2 text-muted border border-line'
+                                                            }`}>
+                                                                {u.avatar || u.name.substring(0, 2).toUpperCase()}
+                                                            </div>
+                                                            <div className="flex flex-col flex-1 min-w-0">
+                                                                <span className={`text-[13px] font-medium truncate leading-tight ${
+                                                                    isSelected ? 'text-primary' : 'text-text'
+                                                                }`}>{u.name}</span>
+                                                                <span className="text-[11px] text-muted capitalize truncate mt-0.5">{u.role}</span>
+                                                            </div>
+                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                                                isSelected ? 'bg-primary text-white shadow-sm scale-100' : 'border border-strong-line bg-transparent scale-90 opacity-40'
+                                                            }`}>
+                                                                {isSelected && <Check size={12} strokeWidth={3} />}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div>
-                            <Input label="Due Date" type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
                         </div>
 
                         {assigneeRole === "designer" && (
-                            <div className="md:col-span-2 border border-line rounded-xl p-5 bg-panel-2/30">
-                                <label className="flex text-text text-sm font-bold mb-3 items-center gap-2">
-                                    <Sparkles size={16} className="text-primary" /> Is this a Social Media Post?
-                                </label>
-                                <div className="flex gap-4 mb-5">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="isPost" checked={isPost === true} onChange={() => setIsPost(true)} className="text-primary" />
-                                        <span className="text-sm font-medium">Yes</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="isPost" checked={isPost === false} onChange={() => setIsPost(false)} className="text-primary" />
-                                        <span className="text-sm font-medium">No (Internal Task)</span>
-                                    </label>
-                                </div>
+                            <>
+                                <hr className="border-line" />
+                                {/* SECTION: Creative Brief */}
+                                <div className="space-y-5">
+                                    <div>
+                                        <h3 className="text-[15px] font-semibold text-text">Creative Brief</h3>
+                                        <p className="text-[13px] text-muted mt-0.5">Platform specific details and formatting.</p>
+                                    </div>
 
-                                {isPost && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-line pt-4">
-                                        <div className="md:col-span-2">
-                                            <label className="block text-muted text-xs font-bold uppercase tracking-wider mb-3">Target Platforms</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {platformOptions.map(p => (
-                                                    <button
-                                                        key={p} type="button" onClick={() => handlePlatformChange(p)}
-                                                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all border ${platforms.includes(p) ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20 shadow-sm" : "bg-panel border-line hover:border-strong-line"
-                                                            }`}
-                                                    >
-                                                        {platforms.includes(p) && <Check size={14} />} {p}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="md:col-span-2">
-                                            <label className="block text-muted text-xs font-bold uppercase tracking-wider mb-3">Hashtags</label>
-                                            <div className="flex flex-wrap gap-2 min-h-[46px] items-center border border-line rounded-lg p-2 bg-panel focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
-                                                {hashtags.map(tag => (
-                                                    <span key={tag} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 bg-white border border-line shadow-sm text-text text-xs font-bold">
-                                                        {tag}
-                                                        <button type="button" onClick={() => removeHashtag(tag)} className="text-muted hover:text-danger hover:bg-danger/10 rounded-full p-0.5 transition-colors">
-                                                            <X size={12} />
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                                <input
-                                                    className="flex-1 min-w-[150px] bg-transparent outline-none px-2 py-1 text-sm text-text placeholder:text-muted/50"
-                                                    value={hashtagInput} onChange={e => setHashtagInput(e.target.value)} onKeyDown={handleHashtagKeyDown} placeholder="Type hashtag and press Enter..."
-                                                />
-                                            </div>
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                        <label className="text-text text-[13px] font-semibold">Is this a Social Media Post?</label>
+                                        <div className="inline-flex p-1 bg-panel-2 rounded-lg border border-line">
+                                            <label className={`cursor-pointer px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${isPost ? 'bg-panel text-text shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-text'}`}>
+                                                <input type="radio" name="isPost" checked={isPost === true} onChange={() => setIsPost(true)} className="hidden" />
+                                                Yes
+                                            </label>
+                                            <label className={`cursor-pointer px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${!isPost ? 'bg-panel text-text shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-text'}`}>
+                                                <input type="radio" name="isPost" checked={isPost === false} onChange={() => setIsPost(false)} className="hidden" />
+                                                No
+                                            </label>
                                         </div>
                                     </div>
-                                )}
-                            </div>
+
+                                    {isPost && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                                            <div className="md:col-span-2">
+                                                <label className="block text-text text-[13px] font-semibold mb-2">Target Platforms</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {platformOptions.map(p => (
+                                                        <button
+                                                            key={p} type="button" onClick={() => handlePlatformChange(p)}
+                                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all border ${platforms.includes(p) ? "bg-text text-panel border-transparent shadow-sm" : "bg-transparent text-muted border-line hover:border-strong-line hover:text-text"}`}
+                                                        >
+                                                            {platforms.includes(p) && <Check size={14} className="shrink-0" />} {p}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="md:col-span-2">
+                                                <label className="block text-text text-[13px] font-semibold mb-2">Hashtags</label>
+                                                <div className="flex flex-wrap gap-2 min-h-[40px] items-center border border-strong-line rounded-md p-1 bg-transparent focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                                                    {hashtags.map(tag => (
+                                                        <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-panel-2 rounded text-text text-[13px] font-medium border border-line">
+                                                            {tag}
+                                                            <button type="button" onClick={() => removeHashtag(tag)} className="text-muted hover:text-text ml-0.5 transition-colors">
+                                                                <X size={12} />
+                                                            </button>
+                                                        </span>
+                                                    ))}
+                                                    <input
+                                                        className="flex-1 min-w-[150px] bg-transparent outline-none px-2 py-1 text-[13px] text-text placeholder:text-muted/60"
+                                                        value={hashtagInput} onChange={e => setHashtagInput(e.target.value)} onKeyDown={handleHashtagKeyDown} placeholder="Type hashtag and press Enter..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         )}
 
-                        <div>
-                            <Input label="Desired Tone" name="tone" type="select" value={formData.tone} onChange={handleChange} options={tones.map(t => ({ label: t, value: t }))} />
-                        </div>
+                        <hr className="border-line" />
 
-                        <div>
-                            <Input label="Priority" name="priority" type="select" value={formData.priority} onChange={handleChange} options={priorities.map(p => ({ label: p, value: p }))} />
-                        </div>
+                        {/* SECTION: Additional Details */}
+                        <div className="space-y-5">
+                            <div>
+                                <h3 className="text-[15px] font-semibold text-text">Additional Details</h3>
+                                <p className="text-[13px] text-muted mt-0.5">References, tone, and extra notes.</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Input label="Desired Tone" name="tone" type="select" value={formData.tone} onChange={handleChange} options={tones.map(t => ({ label: t, value: t }))} />
+                                <Input label="Visual Reference URL" name="visualReference" value={formData.visualReference} onChange={handleChange} placeholder="https://drive.google.com/..." />
 
-                        <div className="md:col-span-2">
-                            <Input label="Visual Reference URL" name="visualReference" value={formData.visualReference} onChange={handleChange} placeholder="https://drive.google.com/... or Figma link" />
-                        </div>
-
-                        <div className="md:col-span-2">
-                            <label className="block text-text text-sm font-bold mb-2">Notes for Assignee</label>
-                            <RichTextEditor 
-                                value={formData.notes} 
-                                onChange={(val) => setFormData({...formData, notes: val})} 
-                                placeholder="Any specific instructions, links, or images..."
-                            />
+                                <div className="md:col-span-2 pt-2">
+                                    <label className="block text-text text-[13px] font-semibold mb-2">Notes for Assignee</label>
+                                    <RichTextEditor
+                                        value={formData.notes}
+                                        onChange={(val) => setFormData({ ...formData, notes: val })}
+                                        placeholder="Any specific instructions, links, or images..."
+                                        users={users}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="pt-6 mt-2 border-t border-line flex justify-end gap-3">
-                        <button type="button" onClick={() => setIsFormModalOpen(false)} className="btn px-6 py-2.5 font-semibold text-text bg-panel hover:bg-panel-2 border border-line">Cancel</button>
-                        <button type="submit" disabled={isSubmitting} className="btn primary px-8 py-2.5 shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-[15px] disabled:opacity-70">
-                            {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : editingTaskId ? "Save Changes" : "Create Task"}
+                    <div className="px-6 py-4 border-t border-line bg-panel flex items-center justify-end gap-3 sticky bottom-0 z-20 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.03)]">
+                        <button type="button" onClick={() => setIsFormModalOpen(false)} className="px-5 py-2 text-[13px] font-medium text-text hover:bg-panel-2 rounded-md transition-colors border border-transparent">
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={isSubmitting} className="btn primary px-6 py-2 rounded-md shadow-sm hover:shadow transition-all flex items-center gap-2 text-[13px] font-medium disabled:opacity-70">
+                            {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : editingTaskId ? "Save Changes" : "Create Task"}
                         </button>
                     </div>
                 </form>
@@ -640,11 +755,10 @@ export default function TasksPage() {
 
                                 <div className="text-muted font-medium h-8 flex items-center">Priority</div>
                                 <div className="h-8 flex items-center">
-                                    <span className={`px-2 py-1 rounded text-[11px] font-extrabold uppercase border ${
-                                        viewingTask.priority === "Urgent" ? "bg-danger/10 text-danger border-danger/20" :
-                                        viewingTask.priority === "Low" ? "bg-muted/10 text-muted border-line" :
-                                        "bg-warning/10 text-warning border-warning/20"
-                                    }`}>{viewingTask.priority}</span>
+                                    <span className={`px-2 py-1 rounded text-[11px] font-extrabold uppercase border ${viewingTask.priority === "Urgent" ? "bg-danger/10 text-danger border-danger/20" :
+                                            viewingTask.priority === "Low" ? "bg-muted/10 text-muted border-line" :
+                                                "bg-warning/10 text-warning border-warning/20"
+                                        }`}>{viewingTask.priority}</span>
                                 </div>
 
                                 {viewingTask.tone && (
@@ -694,7 +808,8 @@ export default function TasksPage() {
                                 <div className="mb-8">
                                     <h3 className="font-bold text-base text-text mb-3 flex items-center gap-2">Notes for Assignee <AlertCircle size={14} className="text-warning" /></h3>
                                     <div className="bg-panel border border-line rounded-xl overflow-hidden">
-                                        <style dangerouslySetInnerHTML={{__html: `
+                                        <style dangerouslySetInnerHTML={{
+                                            __html: `
                                             .notes-preview img {
                                                 max-width: 100%;
                                                 height: auto;
@@ -718,9 +833,9 @@ export default function TasksPage() {
                                             .notes-preview a { color: var(--primary, #6366f1); text-decoration: underline; }
                                             .notes-preview hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.75rem 0; }
                                         `}} />
-                                        <div 
+                                        <div
                                             className="notes-preview text-sm text-text leading-relaxed p-5"
-                                            dangerouslySetInnerHTML={{ __html: viewingTask.notes }} 
+                                            dangerouslySetInnerHTML={{ __html: viewingTask.notes }}
                                         />
                                     </div>
                                 </div>
@@ -747,6 +862,7 @@ export default function TasksPage() {
                                     </div>
                                 </div>
                             )}
+                            <TaskComments taskId={viewingTask.id} />
                         </div>
                     </div>
                 )}

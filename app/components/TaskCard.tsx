@@ -4,8 +4,7 @@ import SlideOver from "./SlideOver";
 import Modal from "./Modal";
 import { useScheduler } from "../context/SchedulerContext";
 import toast from "react-hot-toast";
-import CommentEditor from "./CommentEditor";
-
+import TaskComments from "./TaskComments";
 export default function TaskCard({ brief, user }: any) {
   const { store, updateStore, currentUser, users } = useScheduler();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -242,13 +241,15 @@ export default function TaskCard({ brief, user }: any) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-panel">
-          <div className="p-6 md:p-8 max-w-[700px]">
-            <h1 className="text-3xl font-black text-text mb-8 tracking-tight flex items-start gap-3">
-              {brief.title}
-            </h1>
+        <div className="flex-1 overflow-y-auto bg-bg py-6">
+          <div className="px-6 md:px-8 max-w-[800px] mx-auto w-full">
+            
+            <div className="bg-panel border border-line rounded-2xl shadow-sm p-6 md:p-8 mb-6">
+              <h1 className="text-3xl font-black text-text mb-8 tracking-tight flex items-start gap-3">
+                {brief.title}
+              </h1>
 
-            <div className="grid grid-cols-[140px_1fr] gap-y-4 mb-8 text-sm">
+              <div className="grid grid-cols-[140px_1fr] gap-y-4 mb-8 text-sm">
               <div className="text-muted font-medium flex items-center h-8">Assignee</div>
               <div className="flex items-center h-8">
                 {currentUser.role === "admin" ? (
@@ -340,15 +341,40 @@ export default function TaskCard({ brief, user }: any) {
               </div>
             </div>
 
-            {brief.notes && (
+            {brief.notes && brief.notes.replace(/<[^>]*>/g, '').trim() && (
               <div className="mb-10">
                 <h3 className="font-bold text-base text-text mb-3 flex items-center gap-2">
                   Notes <AlertCircle size={14} className="text-warning" />
                 </h3>
-                <div className="bg-warning/5 border border-warning/20 rounded-lg p-4">
-                  <p className="text-[14px] text-text whitespace-pre-wrap leading-relaxed m-0">
-                    {brief.notes}
-                  </p>
+                <div className="bg-panel border border-line rounded-xl overflow-hidden">
+                  <style dangerouslySetInnerHTML={{__html: `
+                    .task-notes-preview img {
+                      max-width: 100%;
+                      height: auto;
+                      border-radius: 0.5rem;
+                      margin: 0.75rem 0;
+                      display: block;
+                    }
+                    .task-notes-preview h1 { font-size: 1.4rem; font-weight: 800; margin: 0.75rem 0 0.5rem; }
+                    .task-notes-preview h2 { font-size: 1.15rem; font-weight: 700; margin: 0.75rem 0 0.5rem; }
+                    .task-notes-preview p { margin: 0.25rem 0; }
+                    .task-notes-preview ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+                    .task-notes-preview ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+                    .task-notes-preview li { margin: 0.2rem 0; }
+                    .task-notes-preview strong { font-weight: 700; }
+                    .task-notes-preview em { font-style: italic; }
+                    .task-notes-preview u { text-decoration: underline; }
+                    .task-notes-preview s { text-decoration: line-through; }
+                    .task-notes-preview pre { background: rgba(0,0,0,0.2); border-radius: 0.4rem; padding: 0.75rem 1rem; font-family: monospace; font-size: 0.85em; white-space: pre-wrap; margin: 0.5rem 0; }
+                    .task-notes-preview code { background: rgba(0,0,0,0.2); border-radius: 0.25rem; padding: 0.1em 0.3em; font-family: monospace; font-size: 0.85em; }
+                    .task-notes-preview blockquote { border-left: 3px solid var(--primary, #6366f1); padding-left: 1rem; margin: 0.5rem 0; opacity: 0.8; }
+                    .task-notes-preview a { color: var(--primary, #6366f1); text-decoration: underline; }
+                    .task-notes-preview hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.75rem 0; }
+                  `}} />
+                  <div
+                    className="task-notes-preview text-sm text-text leading-relaxed p-5"
+                    dangerouslySetInnerHTML={{ __html: brief.notes }}
+                  />
                 </div>
               </div>
             )}
@@ -374,10 +400,9 @@ export default function TaskCard({ brief, user }: any) {
                 </div>
               </div>
             )}
+            </div>
 
-            <hr className="border-line mb-8" />
-
-            <div>
+            <div className="bg-panel border border-line rounded-2xl shadow-sm p-6 md:p-8 mb-6">
               <h3 className="font-bold text-base text-text mb-4">Activity</h3>
               
               <div className="flex gap-3 mb-6">
@@ -390,41 +415,9 @@ export default function TaskCard({ brief, user }: any) {
                 </div>
               </div>
 
-              {/* Display existing comments */}
-              {taskComments.map((c: any) => {
-                const commentUser = users.find((u: any) => u.id === c.authorId);
-                return (
-                  <div key={c.id} className="flex gap-3 mb-6">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">
-                      {commentUser?.avatar || "U"}
-                    </div>
-                    <div className="text-sm flex-1">
-                      <div className="bg-panel-2 border border-line rounded-lg rounded-tl-none p-3">
-                        <div className="font-bold text-text mb-1">{commentUser?.name || "User"}</div>
-                        <div 
-                          className="text-text whitespace-pre-wrap m-0 prose prose-sm max-w-none prose-p:my-1 prose-img:rounded-md prose-img:max-h-40" 
-                          dangerouslySetInnerHTML={{ __html: c.text }} 
-                        />
-                      </div>
-                      <div className="text-xs text-muted mt-1.5 ml-1">{new Date(c.createdAt).toLocaleString()}</div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Add new comment */}
-              <CommentEditor 
-                currentUser={currentUser} 
-                onSubmit={(text) => {
-                  setComment(text); // Using existing state just for triggering submission flow if needed
-                  handleAddComment();
-                  // Note: In a real implementation you would pass the text to handleAddComment
-                  // But since handleAddComment uses the `comment` state, we could set it and call it, 
-                  // or better yet, refactor handleAddComment to accept text.
-                  // For now, we'll quickly set it in state and call the handler.
-                }} 
-              />
+              <TaskComments taskId={brief.id} />
             </div>
+
           </div>
         </div>
       </SlideOver>

@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { io, Socket } from "socket.io-client";
+import toast from "react-hot-toast";
 
 const SchedulerContext = createContext<any>(null);
 
@@ -138,18 +140,89 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   // but for the sake of the demo, we default to u1 (admin)
   const [currentUserId, setCurrentUserId] = useState("u1");
   const [authUser, setAuthUser] = useState(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   useEffect(() => {
-    // Load store from localStorage on mount
-    const saved = localStorage.getItem("scheduler-store");
-    if (saved) {
-      try {
-        setStore(JSON.parse(saved));
-      } catch {
-        setStore(seedStore());
+    // Setup Socket.IO connection
+    const token = localStorage.getItem("token");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+    const socketUrl = apiUrl.replace(/\/api$/, "");
+    
+    if (token) {
+      const newSocket = io(socketUrl, { transports: ["websocket", "polling"] });
+      setSocket(newSocket);
+      
+      newSocket.on("connect", () => {
+        // We will emit joinUserRoom in a separate effect when currentUserId is available
+      });
+
+      newSocket.on("notification", (data: any) => {
+        // Also add it to our store so the UI updates
+        setStore(prev => prev ? { 
+            ...prev, 
+            notifications: [data, ...(prev.notifications || [])] 
+        } : prev);
+
+        toast((t) => (
+          <div className="flex flex-col gap-1 cursor-pointer" onClick={() => {
+            toast.dismiss(t.id);
+            window.location.href = '/tasks'; // Simple redirect to tasks page
+          }}>
+            <span className="text-sm font-semibold text-text">{data.message}</span>
+            <span className="text-xs text-primary font-medium">Click to view task details &rarr;</span>
+          </div>
+        ), {
+          icon: '🔔',
+          duration: 5000,
+          style: {
+            background: 'var(--panel)',
+            color: 'var(--text)',
+            border: '1px solid var(--primary)',
+            borderRadius: '10px',
+            padding: '12px 16px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+          }
+        });
+      });
+
+      return () => {
+        newSocket.disconnect();
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (socket && currentUserId) {
+      // If already connected, join now
+      if (socket.connected) {
+          socket.emit("joinUserRoom", currentUserId);
       }
-    } else {
-      setStore(seedStore());
+      // Also join on any future reconnects
+      const onConnect = () => {
+          socket.emit("joinUserRoom", currentUserId);
+      };
+      socket.on("connect", onConnect);
+      
+      return () => {
+          socket.off("connect", onConnect);
+      };
+    }
+  }, [socket, currentUserId]);
+
+  useEffect(() => {
+    // Load store from localStorage on mount ONLY ONCE
+    if (refreshCounter === 0) {
+        const saved = localStorage.getItem("scheduler-store");
+        if (saved) {
+          try {
+            setStore(JSON.parse(saved));
+          } catch {
+            setStore(seedStore());
+          }
+        } else {
+          setStore(seedStore());
+        }
     }
 
     // Try to load real auth user if available
@@ -198,6 +271,25 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
         }
       };
       
+      // Fetch notifications from backend
+      const fetchNotifications = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+          const res = await fetch(`${apiUrl}/notifications`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.notifications) {
+            setStore((prev: any) => {
+              if (!prev) return prev;
+              return { ...prev, notifications: data.notifications };
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch notifications", err);
+        }
+      };
+
       // Fetch tasks from backend
       const fetchTasks = async () => {
         try {
@@ -219,6 +311,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
                 notes: t.notes || "",
                 dueDate: t.due_date ? new Date(t.due_date).toISOString().slice(0, 10) : "",
                 assignedTo: t.assigned_to ? t.assigned_to.toString() : "",
+                assignedToMulti: t.assigned_to_multi ? (typeof t.assigned_to_multi === 'string' ? JSON.parse(t.assigned_to_multi) : t.assigned_to_multi) : [],
                 assignedToName: t.assigned_to_name || "",
                 assignedToEmail: t.assigned_to_email || "",
                 priority: t.priority === "high" || t.priority === "urgent" ? "Urgent" : (t.priority === "low" ? "Low" : "Normal"),
@@ -236,12 +329,27 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
         }
       };
       
-      fetchUsers().then(fetchTasks);
+      fetchUsers().then(fetchTasks).then(fetchNotifications);
     }
 
-    const isDark = localStorage.getItem("scheduler-dark") === "true";
-    setDark(isDark);
-  }, []);
+    if (refreshCounter === 0) {
+        const isDark = localStorage.getItem("scheduler-dark") === "true";
+        setDark(isDark);
+    }
+  }, [refreshCounter]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleRefresh = () => {
+        setRefreshCounter(prev => prev + 1);
+    };
+    socket.on('tasks_refresh_needed', handleRefresh);
+    socket.on('task_updated', handleRefresh);
+    return () => {
+        socket.off('tasks_refresh_needed', handleRefresh);
+        socket.off('task_updated', handleRefresh);
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (store) {
@@ -297,13 +405,26 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const markNotificationsRead = () => {
+  const markNotificationsRead = async () => {
+    // Optimistic UI update
     updateStore(prev => ({
       ...prev,
-      notifications: prev.notifications.map(n => 
-        n.userId === currentUserId ? { ...n, read: true } : n
-      )
+      notifications: prev.notifications.map(n => ({ ...n, is_read: true }))
     }));
+
+    // API Call
+    try {
+        const token = localStorage.getItem("token");
+        if (token) {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+            await fetch(`${apiUrl}/notifications/read-all`, {
+                method: 'PATCH',
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+        }
+    } catch(e) {
+        console.error("Failed to mark notifications read", e);
+    }
   };
 
   if (!store) return null; // loading state
@@ -318,7 +439,9 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     currentUser,
     users: usersList,
     addNotification,
-    markNotificationsRead
+    markNotificationsRead,
+    authUser,
+    socket
   };
 
   return (

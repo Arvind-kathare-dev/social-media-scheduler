@@ -9,7 +9,15 @@ export default function KanbanBoard({ title, isAssignedToMe = false }: any) {
   const { store, updateStore, currentUser, users } = useScheduler();
   
   const briefs = isAssignedToMe 
-    ? store.briefs.filter((b: any) => b.assignedTo === currentUser.id)
+    ? store.briefs.filter((b: any) => {
+        if (b.assignedToMulti && Array.isArray(b.assignedToMulti) && b.assignedToMulti.length > 0) {
+          return b.assignedToMulti.some((id: any) => String(id) === String(currentUser.id));
+        }
+        if (b.assignedTo) {
+          return String(b.assignedTo) === String(currentUser.id);
+        }
+        return false;
+      })
     : store.briefs;
 
   const cols = [

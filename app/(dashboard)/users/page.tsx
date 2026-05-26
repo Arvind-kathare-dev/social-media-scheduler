@@ -26,13 +26,6 @@ export default function UsersPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  // Reset pagination when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
 
   const isAdmin = currentUser.role === "admin";
   const tasks = store.briefs || [];
@@ -249,17 +242,14 @@ export default function UsersPage() {
             </thead>
             <tbody className="text-sm">
               {(() => {
-                const allUsers = (store.users || users).filter((u: any) => u.id !== currentUser.id);
+                const allUsers = store.users || users;
                 const filteredUsers = allUsers.filter((u: any) => 
                   u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                   u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
                   u.role.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 
-                const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-                const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-                if (paginatedUsers.length === 0) {
+                if (filteredUsers.length === 0) {
                   return (
                     <tr>
                       <td colSpan={4} className="py-10 text-center text-muted">
@@ -269,7 +259,7 @@ export default function UsersPage() {
                   );
                 }
 
-                return paginatedUsers.map((u: any) => (
+                return filteredUsers.map((u: any) => (
                 <tr key={u.id} className="border-b border-line last:border-0 hover:bg-panel-2/50 transition-colors group">
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-4">
@@ -301,9 +291,14 @@ export default function UsersPage() {
                       <button className="icon-btn w-8 h-8 rounded-lg bg-panel-2 text-muted hover:text-primary hover:bg-primary/10 transition-colors" onClick={() => handleOpenForm(u)} title="Edit user">
                         <Edit2 size={16} />
                       </button>
-                      <button className="icon-btn w-8 h-8 rounded-lg bg-panel-2 text-muted hover:text-danger hover:bg-danger/10 transition-colors" onClick={() => confirmDelete(u)} title="Delete user">
-                        <Trash2 size={16} />
-                      </button>
+                      {u.id !== currentUser.id && (
+                        <button className="icon-btn w-8 h-8 rounded-lg bg-panel-2 text-muted hover:text-danger hover:bg-danger/10 transition-colors" onClick={() => confirmDelete(u)} title="Delete user">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      {u.id === currentUser.id && (
+                        <span className="text-[10px] uppercase font-bold text-muted bg-panel-2 px-2 py-1 rounded-md flex items-center">You</span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -311,59 +306,6 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
-        
-        {/* Pagination Controls */}
-        {(() => {
-          const allUsers = (store.users || users).filter((u: any) => u.id !== currentUser.id);
-          const filteredUsers = allUsers.filter((u: any) => 
-            u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            u.role.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-          const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-
-          if (totalPages > 1) {
-            return (
-              <div className="p-4 border-t border-strong-line bg-panel-2/30 flex items-center justify-between">
-                <span className="text-xs font-bold text-muted uppercase tracking-wider">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
-                </span>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-panel border border-line text-muted hover:text-text hover:bg-panel-2 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <div className="flex items-center gap-1 px-2">
-                    {Array.from({ length: totalPages }).map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentPage(i + 1)}
-                        className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors ${
-                          currentPage === i + 1 
-                            ? "bg-primary text-white" 
-                            : "text-muted hover:bg-panel-2 hover:text-text"
-                        }`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
-                  </div>
-                  <button 
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-panel border border-line text-muted hover:text-text hover:bg-panel-2 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
       </div>
 
       <Modal

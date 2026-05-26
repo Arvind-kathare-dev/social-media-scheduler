@@ -54,11 +54,13 @@ function Topbar() {
     router.push("/login");
   };
 
-  const unreadCount = store.notifications.filter((n) => n.userId === currentUser.id && !n.read).length;
+  const unreadCount = store.notifications ? store.notifications.filter((n) => !n.is_read).length : 0;
 
   const handleBellClick = () => {
     setShowNotifications(!showNotifications);
-    markNotificationsRead();
+    if (!showNotifications && unreadCount > 0) {
+        markNotificationsRead();
+    }
   };
 
   return (
@@ -77,16 +79,46 @@ function Topbar() {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-[300px] max-h-[400px] overflow-auto bg-panel border border-strong-line rounded-custom shadow-custom p-3 z-50">
-              {store.notifications.filter(n => n.userId === currentUser.id).length > 0 ? (
-                store.notifications.filter(n => n.userId === currentUser.id).map(n => (
-                  <div key={n.id} className="p-2 border-b border-line last:border-0 text-sm">
-                    {n.text}
-                    <div className="text-xs text-muted mt-1">{new Date(n.createdAt).toLocaleString()}</div>
+            <div className="absolute right-0 top-full mt-2 w-[320px] max-h-[400px] overflow-auto bg-panel border border-strong-line rounded-custom shadow-custom z-50">
+                <div className="p-3 border-b border-line sticky top-0 bg-panel/90 backdrop-blur-sm flex justify-between items-center z-10">
+                    <span className="font-bold text-sm">Notifications</span>
+                    {unreadCount === 0 && <span className="text-xs text-muted font-medium">All caught up!</span>}
+                </div>
+              {store.notifications && store.notifications.length > 0 ? (
+                store.notifications.map(n => (
+                  <div key={n.id} className={`p-3 border-b border-line last:border-0 text-sm transition-colors hover:bg-panel-2 cursor-pointer ${!n.is_read ? 'bg-primary/5' : ''}`}>
+                    <div className="flex gap-2.5 items-start">
+                        {n.type === 'mention' ? (
+                            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                                <span className="font-bold text-sm">@</span>
+                            </div>
+                        ) : n.type === 'task_assigned' ? (
+                            <div className="w-8 h-8 rounded-full bg-ok/20 text-ok flex items-center justify-center shrink-0 mt-0.5">
+                                <FileEdit size={14} />
+                            </div>
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-panel-2 text-text flex items-center justify-center shrink-0 border border-line mt-0.5">
+                                <MessageSquareCheck size={14} />
+                            </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[13px] leading-snug break-words">
+                                {n.message}
+                            </div>
+                            <div className="text-[11px] font-medium text-muted mt-1.5 uppercase tracking-wide">
+                                {new Date(n.created_at || n.createdAt).toLocaleString(undefined, {
+                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                })}
+                            </div>
+                        </div>
+                    </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center text-muted p-4 text-sm">No notifications.</div>
+                <div className="text-center text-muted p-6 text-sm flex flex-col items-center justify-center gap-2">
+                    <Bell size={24} className="opacity-20" />
+                    No notifications yet.
+                </div>
               )}
             </div>
           )}
