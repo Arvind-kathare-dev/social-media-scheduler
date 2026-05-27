@@ -72,7 +72,7 @@ export default function TaskComments({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const fetchComments = async () => {
+  const fetchComments = async (silent = false) => {
     try {
       const token = localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -80,16 +80,28 @@ export default function TaskComments({
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok) setComments(data.data || []);
+      if (res.ok) {
+        setComments(prev => {
+          const newData = data.data || [];
+          if (JSON.stringify(prev) === JSON.stringify(newData)) return prev;
+          return newData;
+        });
+      }
     } catch (e) {
       console.error("Failed to fetch comments", e);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchComments();
+    
+    // Polling fallback for serverless environments where websockets drop
+    const interval = setInterval(() => {
+      fetchComments(true);
+    }, 4000);
+
     if (socket) {
       socket.emit("joinTaskRoom", taskId);
       socket.on("new_comment", (comment: any) => {
@@ -108,10 +120,13 @@ export default function TaskComments({
         });
       });
       return () => {
+        clearInterval(interval);
         socket.emit("leaveTaskRoom", taskId);
         socket.off("new_comment");
       };
     }
+    
+    return () => clearInterval(interval);
   }, [taskId, socket]);
 
   const handleSubmit = async (content?: string) => {
