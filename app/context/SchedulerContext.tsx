@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 import toast from "react-hot-toast";
+import { Loader2 } from "lucide-react";
 
 const SchedulerContext = createContext<any>(null);
 
@@ -211,6 +212,8 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   }, [socket, currentUserId]);
 
   useEffect(() => {
+    let pollInterval: any = null;
+    
     // Initialize with empty arrays to let the API populate the data
     if (refreshCounter === 0) {
       setStore({ briefs: [], uploads: [], comments: [], events: [], notifications: [], users: initialUsers, folders: [] });
@@ -263,7 +266,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
       };
 
       // Fetch notifications from backend
-      const fetchNotifications = async () => {
+      const fetchNotifications = async (isPolling = false) => {
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
           const res = await fetch(`${apiUrl}/notifications`, {
@@ -273,6 +276,39 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
           if (res.ok && data.notifications) {
             setStore((prev: any) => {
               if (!prev) return prev;
+
+              if (isPolling) {
+                const currentIds = new Set((prev.notifications || []).map((n:any) => n.id));
+                const newNotifications = data.notifications.filter((n:any) => !currentIds.has(n.id));
+                
+                newNotifications.forEach((n:any) => {
+                   toast((t) => (
+                     <div className="flex flex-col gap-1 cursor-pointer" onClick={() => {
+                       toast.dismiss(t.id);
+                       window.location.href = '/tasks';
+                     }}>
+                       <span className="text-sm font-semibold text-text">{n.message}</span>
+                       <span className="text-xs text-primary font-medium">Click to view task details &rarr;</span>
+                     </div>
+                   ), {
+                     icon: '🔔',
+                     duration: 5000,
+                     style: {
+                       background: 'var(--panel)',
+                       color: 'var(--text)',
+                       border: '1px solid var(--primary)',
+                       borderRadius: '10px',
+                       padding: '12px 16px',
+                       boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+                     }
+                   });
+                });
+                
+                if (newNotifications.length === 0 && data.notifications.length === (prev.notifications || []).length) {
+                   return prev;
+                }
+              }
+
               return { ...prev, notifications: data.notifications };
             });
           }
@@ -382,13 +418,22 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
         }
       };
 
-      fetchUsers().then(fetchTasks).then(fetchNotifications).then(fetchFolders).then(fetchAssets);
+      fetchUsers().then(fetchTasks).then(() => fetchNotifications(false)).then(fetchFolders).then(fetchAssets);
+      
+      // Fallback polling for Vercel Serverless dropping WebSockets
+      pollInterval = setInterval(() => {
+        fetchNotifications(true);
+      }, 5000);
     }
 
     if (refreshCounter === 0) {
       const isDark = localStorage.getItem("scheduler-dark") === "true";
       setDark(isDark);
     }
+    
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, [refreshCounter]);
 
   useEffect(() => {
@@ -476,7 +521,15 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  if (!store) return null; // loading state
+  if (!store) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-[var(--bg)] text-[var(--text)]">
+        <Loader2 className="h-12 w-12 animate-spin text-[var(--primary)] mb-6 drop-shadow-md" />
+        <h2 className="text-2xl font-extrabold tracking-tight">Loading Workspace...</h2>
+        <p className="text-sm text-[var(--muted)] mt-2 font-medium">Fetching data and establishing secure connection</p>
+      </div>
+    );
+  }
 
   const value = {
     store,
