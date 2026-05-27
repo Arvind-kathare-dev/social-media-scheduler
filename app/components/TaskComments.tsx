@@ -94,6 +94,9 @@ export default function TaskComments({
       socket.emit("joinTaskRoom", taskId);
       socket.on("new_comment", (comment: any) => {
         setComments((prev) => {
+          const exists = (list: any[]): boolean => list.some(c => c.id === comment.id || (c.replies && exists(c.replies)));
+          if (exists(prev)) return prev;
+
           if (!comment.parent_id) return [...prev, comment];
           const updateReplies = (list: any[]): any[] =>
             list.map((c) => {
@@ -122,9 +125,27 @@ export default function TaskComments({
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ content: msg, parent_id: replyTo ? replyTo.id : null }),
       });
+      const data = await res.json();
       if (res.ok) {
         setNewComment("");
         setReplyTo(null);
+        
+        const comment = data.data;
+        if (comment) {
+          setComments((prev) => {
+            const exists = (list: any[]): boolean => list.some(c => c.id === comment.id || (c.replies && exists(c.replies)));
+            if (exists(prev)) return prev;
+
+            if (!comment.parent_id) return [...prev, comment];
+            const updateReplies = (list: any[]): any[] =>
+              list.map((c) => {
+                if (c.id === comment.parent_id) return { ...c, replies: [...(c.replies || []), comment] };
+                if (c.replies?.length) return { ...c, replies: updateReplies(c.replies) };
+                return c;
+              });
+            return updateReplies(prev);
+          });
+        }
       } else {
         toast.error("Failed to send message");
       }
