@@ -97,11 +97,6 @@ export default function TaskComments({
   useEffect(() => {
     fetchComments();
     
-    // Polling fallback for serverless environments where websockets drop
-    const interval = setInterval(() => {
-      fetchComments(true);
-    }, 4000);
-
     if (socket) {
       socket.emit("joinTaskRoom", taskId);
       socket.on("new_comment", (comment: any) => {
@@ -120,13 +115,10 @@ export default function TaskComments({
         });
       });
       return () => {
-        clearInterval(interval);
         socket.emit("leaveTaskRoom", taskId);
         socket.off("new_comment");
       };
     }
-    
-    return () => clearInterval(interval);
   }, [taskId, socket]);
 
   const handleSubmit = async (content?: string) => {
