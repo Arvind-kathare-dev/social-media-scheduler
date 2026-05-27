@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useScheduler } from "../context/SchedulerContext";
-import { Send, X, Download, Smile, Paperclip, CornerDownRight, CheckCheck } from "lucide-react";
+import { Send, X, Download, Smile, Paperclip, CornerDownRight, CheckCheck, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ─── Emoji Picker ──────────────────────────────────────────────────────────────
