@@ -6,7 +6,7 @@ import { useScheduler } from "../../../context/SchedulerContext";
 import {
   ArrowLeft, Clock, CheckCircle2, Hash, ExternalLink,
   AlertCircle, Upload, ThumbsUp, MoreHorizontal,
-  Image as ImageIcon, Link as LinkIcon, RotateCcw, Eye, Check, XCircle
+  Image as ImageIcon, Link as LinkIcon, RotateCcw, Eye, Check, XCircle, Loader2
 } from "lucide-react";
 import TaskComments from "../../../components/TaskComments";
 import RichTextEditor from "../../../components/RichTextEditor";
@@ -19,6 +19,8 @@ export default function TaskDetailPage() {
   const { store, updateStore, currentUser, users } = useScheduler();
   const addNotification = (store as any).addNotification || null;
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const isAdmin = currentUser.role === "admin";
 
   const brief = store.briefs?.find((b: any) => String(b.id) === String(id));
@@ -128,6 +130,7 @@ export default function TaskDetailPage() {
     }
 
     try {
+      setIsSubmitting(true);
       let backendSubmission = null;
       const token = localStorage.getItem("token");
       if (token && !String(brief.id).startsWith('b')) {
@@ -195,11 +198,14 @@ export default function TaskDetailPage() {
     } catch (err) {
       console.error(err);
       toast.error("Failed to submit");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleStatusUpdate = async (newStatus: string, uploadId?: string) => {
     try {
+      setUpdatingStatusId(uploadId || brief.id);
       updateStore((prev: any) => {
         let nextUploads = prev.uploads || [];
         if (uploadId) {
@@ -240,6 +246,8 @@ export default function TaskDetailPage() {
       toast.success(labels[newStatus] || 'Status updated');
     } catch (err) {
       toast.error("Failed to update status");
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
@@ -562,14 +570,14 @@ export default function TaskDetailPage() {
                         {/* Admin Review Actions per Upload */}
                         {isAdmin && upload.status !== 'approved' && (
                           <div className="mt-5 pt-4 border-t border-line/50 flex items-center gap-3">
-                            <button onClick={() => handleStatusUpdate('approved', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ok text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm">
-                              <Check size={14} /> Approve
+                            <button disabled={updatingStatusId === upload.id} onClick={() => handleStatusUpdate('approved', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ok text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                              {updatingStatusId === upload.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Approve
                             </button>
-                            <button onClick={() => handleStatusUpdate('revision', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-warning/50 text-sm font-bold text-warning hover:bg-warning/10 transition-all">
-                              <RotateCcw size={14} /> Request Revision
+                            <button disabled={updatingStatusId === upload.id} onClick={() => handleStatusUpdate('revision', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-warning/50 text-sm font-bold text-warning hover:bg-warning/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                              {updatingStatusId === upload.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Request Revision
                             </button>
-                            <button onClick={() => handleStatusUpdate('todo', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-line text-sm font-bold text-muted hover:bg-panel-2 transition-all">
-                              <Clock size={14} /> Pending
+                            <button disabled={updatingStatusId === upload.id} onClick={() => handleStatusUpdate('todo', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-line text-sm font-bold text-muted hover:bg-panel-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                              {updatingStatusId === upload.id ? <Loader2 size={14} className="animate-spin" /> : <Clock size={14} />} Pending
                             </button>
                           </div>
                         )}
@@ -774,15 +782,16 @@ export default function TaskDetailPage() {
               {currentUser.role === 'designer' ? 'Upload images directly in the editor using the image button ↑' : 'Paste screenshots directly into the editor ↑'}
             </p>
             <div className="flex items-center gap-3 ml-auto">
-              <button onClick={() => setIsUploadModalOpen(false)} className="btn text-text bg-panel hover:bg-panel-2 border border-line">
+              <button disabled={isSubmitting} onClick={() => setIsUploadModalOpen(false)} className="btn text-text bg-panel hover:bg-panel-2 border border-line disabled:opacity-50">
                 Cancel
               </button>
               <button
+                disabled={isSubmitting}
                 onClick={handleSubmitWork}
-                className="btn primary px-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                className="btn primary px-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:-translate-y-0 disabled:hover:shadow-md"
               >
-                <Upload size={15} />
-                {brief.status === 'revision' ? 'Resubmit for Review' : 'Submit for Review'}
+                {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                {isSubmitting ? "Submitting..." : (brief.status === 'revision' ? 'Resubmit for Review' : 'Submit for Review')}
               </button>
             </div>
           </div>

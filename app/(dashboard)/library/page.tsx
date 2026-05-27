@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Download, Copy, Check, Filter, Search, Image as ImageIcon, ExternalLink, Calendar as CalendarIcon, Tag, Clock, Folder, FolderPlus, ArrowLeft, Users as UsersIcon, Edit2, Trash2, FileText, File, Video, Eye, ChevronLeft, ChevronRight, X, AlertTriangle } from "lucide-react";
+import { Download, Copy, Check, Filter, Search, Image as ImageIcon, ExternalLink, Calendar as CalendarIcon, Tag, Clock, Folder, FolderPlus, ArrowLeft, Users as UsersIcon, Edit2, Trash2, FileText, File, Video, Eye, ChevronLeft, ChevronRight, X, AlertTriangle, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import Modal from "../../components/Modal";
 
@@ -12,17 +12,24 @@ export default function LibraryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadData, setUploadData] = useState({ title: "", files: [] as { file?: File, url: string, name: string }[], externalLink: "", platform: "Instagram Feed", copy: "", folderId: "" });
 
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [isSavingFolder, setIsSavingFolder] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [isDeleteFolderModalOpen, setIsDeleteFolderModalOpen] = useState(false);
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [folderData, setFolderData] = useState({ name: "", assignedTo: [] as string[], platforms: [] as string[] });
   const [folderAssigneeRole, setFolderAssigneeRole] = useState("designer");
 
   const [viewingAsset, setViewingAsset] = useState<any | null>(null);
   const [viewIndex, setViewIndex] = useState(0);
+
+  const [isDeleteAssetModalOpen, setIsDeleteAssetModalOpen] = useState(false);
+  const [assetToDelete, setAssetToDelete] = useState<string | null>(null);
+  const [isDeletingAsset, setIsDeletingAsset] = useState(false);
 
   const folders = store.folders || [];
   const isAdmin = store.users?.find((u: any) => u.id === currentUserId)?.role === "admin" || users.find((u: any) => u.id === currentUserId)?.role === "admin";
@@ -287,6 +294,7 @@ export default function LibraryPage() {
     });
 
     const loadingToast = toast.loading("Uploading asset...");
+    setIsUploading(true);
 
     try {
       const res = await fetch(`${apiUrl}/assets/upload`, {
@@ -327,37 +335,49 @@ export default function LibraryPage() {
     } catch (err) {
       console.error(err);
       toast.error("Server error while uploading asset", { id: loadingToast });
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleDeleteAsset = async (assetId: string) => {
-    if (confirm("Are you sure you want to delete this asset?")) {
-      const token = localStorage.getItem("token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+  const confirmDeleteAsset = (assetId: string) => {
+    setAssetToDelete(assetId);
+    setIsDeleteAssetModalOpen(true);
+  };
 
-      const loadingToast = toast.loading("Deleting asset...");
-      try {
-        const res = await fetch(`${apiUrl}/assets/${assetId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
+  const executeDeleteAsset = async () => {
+    if (!assetToDelete) return;
 
-        if (res.ok) {
-          updateStore((prev: any) => ({
-            ...prev,
-            uploads: prev.uploads.filter((u: any) => u.id !== assetId)
-          }));
-          toast.success("Asset deleted successfully", { id: loadingToast });
-        } else {
-          toast.error(data.message || "Failed to delete asset", { id: loadingToast });
+    setIsDeletingAsset(true);
+    const token = localStorage.getItem("token");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+    const loadingToast = toast.loading("Deleting asset...");
+    try {
+      const res = await fetch(`${apiUrl}/assets/${assetToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (err) {
-        console.error(err);
-        toast.error("Server error while deleting asset", { id: loadingToast });
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        updateStore((prev: any) => ({
+          ...prev,
+          uploads: prev.uploads.filter((u: any) => u.id !== assetToDelete)
+        }));
+        toast.success("Asset deleted successfully", { id: loadingToast });
+      } else {
+        toast.error(data.message || "Failed to delete asset", { id: loadingToast });
       }
+    } catch (err) {
+      console.error(err);
+      toast.error("Server error while deleting asset", { id: loadingToast });
+    } finally {
+      setIsDeletingAsset(false);
+      setIsDeleteAssetModalOpen(false);
+      setAssetToDelete(null);
     }
   };
 
@@ -367,6 +387,7 @@ export default function LibraryPage() {
       return;
     }
 
+    setIsSavingFolder(true);
     const token = localStorage.getItem("token");
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -426,6 +447,7 @@ export default function LibraryPage() {
       }
     }
 
+    setIsSavingFolder(false);
     setIsFolderModalOpen(false);
     setFolderData({ name: "", assignedTo: [], platforms: [] });
     setEditingFolderId(null);
@@ -434,6 +456,7 @@ export default function LibraryPage() {
   const handleDeleteFolder = async () => {
     if (!editingFolderId) return;
 
+    setIsDeletingFolder(true);
     const token = localStorage.getItem("token");
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -457,12 +480,13 @@ export default function LibraryPage() {
       }
     } catch (err) {
       toast.error("Server error while deleting folder");
+    } finally {
+      setIsDeletingFolder(false);
+      setIsDeleteFolderModalOpen(false);
+      setIsFolderModalOpen(false);
+      setEditingFolderId(null);
+      setActiveFolderId(null);
     }
-
-    setIsDeleteFolderModalOpen(false);
-    setIsFolderModalOpen(false);
-    setEditingFolderId(null);
-    setActiveFolderId(null);
   };
 
   const toggleFolderAssignee = (userId: string) => {
@@ -750,7 +774,7 @@ export default function LibraryPage() {
                       )}
                       {(isAdmin || currentUserId === item.authorId) && item.isDirect && (
                         <button
-                          onClick={() => handleDeleteAsset(item.id)}
+                          onClick={() => confirmDeleteAsset(item.id)}
                           className="w-10 h-10 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
                           title="Delete Asset"
                         >
@@ -857,8 +881,9 @@ export default function LibraryPage() {
                 </div>
               )}
 
-              <button onClick={handleDirectUpload} className="btn primary w-full mt-2 font-bold shadow-sm">
-                Upload to Library
+              <button disabled={isUploading} onClick={handleDirectUpload} className="btn primary w-full mt-2 font-bold shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                {isUploading ? <Loader2 size={16} className="animate-spin" /> : null}
+                {isUploading ? "Uploading..." : "Upload to Library"}
               </button>
             </div>
           </div>
@@ -1023,10 +1048,12 @@ export default function LibraryPage() {
                     Cancel
                   </button>
                   <button
+                    disabled={isSavingFolder}
                     onClick={handleSaveFolder}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-extrabold text-sm bg-primary text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/30"
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-extrabold text-sm bg-primary text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    {editingFolderId ? "Save Changes" : "Create Folder"}
+                    {isSavingFolder ? <Loader2 size={16} className="animate-spin" /> : null}
+                    {isSavingFolder ? "Saving..." : (editingFolderId ? "Save Changes" : "Create Folder")}
                   </button>
                 </div>
               </div>
@@ -1053,9 +1080,38 @@ export default function LibraryPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 w-full">
-            <button className="btn ghost w-full font-semibold" onClick={() => setIsDeleteFolderModalOpen(false)}>Cancel</button>
-            <button className="btn bg-danger text-white hover:bg-danger/90 border-transparent shadow-sm w-full font-semibold" onClick={handleDeleteFolder}>
-              Yes, Delete
+            <button disabled={isDeletingFolder} className="btn ghost w-full font-semibold disabled:opacity-50" onClick={() => setIsDeleteFolderModalOpen(false)}>Cancel</button>
+            <button disabled={isDeletingFolder} className="btn bg-danger text-white hover:bg-danger/90 border-transparent shadow-sm w-full font-semibold flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed" onClick={handleDeleteFolder}>
+              {isDeletingFolder ? <Loader2 size={16} className="animate-spin" /> : null}
+              {isDeletingFolder ? "Deleting..." : "Yes, Delete"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Asset Modal */}
+      <Modal
+        isOpen={isDeleteAssetModalOpen}
+        onClose={() => setIsDeleteAssetModalOpen(false)}
+        title="Confirm Deletion"
+        maxWidth="max-w-sm"
+      >
+        <div className="p-6">
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-16 h-16 bg-danger/10 text-danger rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="font-extrabold text-xl text-text mb-2">Delete Asset?</h3>
+            <p className="text-sm text-muted m-0 leading-relaxed">
+              Are you sure you want to permanently delete this asset from the library? This action cannot be undone.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <button disabled={isDeletingAsset} className="btn ghost w-full font-semibold disabled:opacity-50" onClick={() => setIsDeleteAssetModalOpen(false)}>Cancel</button>
+            <button disabled={isDeletingAsset} className="btn bg-danger text-white hover:bg-danger/90 border-transparent shadow-sm w-full font-semibold flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed" onClick={executeDeleteAsset}>
+              {isDeletingAsset ? <Loader2 size={16} className="animate-spin" /> : null}
+              {isDeletingAsset ? "Deleting..." : "Yes, Delete"}
             </button>
           </div>
         </div>

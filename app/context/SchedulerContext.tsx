@@ -143,6 +143,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   const [authUser, setAuthUser] = useState(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     // Setup Socket.IO connection
@@ -383,7 +384,20 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
         }
       };
 
-      fetchUsers().then(fetchTasks).then(fetchNotifications).then(fetchFolders).then(fetchAssets);
+      const isFirstLoad = refreshCounter === 0;
+      if (isFirstLoad) setIsInitializing(true);
+
+      Promise.all([
+        fetchUsers(),
+        fetchTasks(),
+        fetchNotifications(),
+        fetchFolders(),
+        fetchAssets()
+      ]).finally(() => {
+        if (isFirstLoad) setIsInitializing(false);
+      });
+    } else {
+      setIsInitializing(false);
     }
 
     if (refreshCounter === 0) {
@@ -477,7 +491,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  if (!store) {
+  if (!store || isInitializing) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-[var(--bg)] text-[var(--text)]">
         <Loader2 className="h-12 w-12 animate-spin text-[var(--primary)] mb-6 drop-shadow-md" />

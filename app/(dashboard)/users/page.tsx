@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Plus, Edit2, Trash2, Lock, AlertTriangle, Users, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Edit2, Trash2, Lock, AlertTriangle, Users, Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import Input from "../../components/Input";
 import Modal from "../../components/Modal";
@@ -16,6 +16,8 @@ export default function UsersPage() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -64,6 +66,7 @@ export default function UsersPage() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+    setIsSubmitting(true);
     const token = localStorage.getItem("token");
 
     if (editingUser) {
@@ -114,6 +117,7 @@ export default function UsersPage() {
         toast.error("An error occurred while creating the user.");
       }
     }
+    setIsSubmitting(false);
   };
 
   const confirmDelete = (user: any) => {
@@ -127,6 +131,7 @@ export default function UsersPage() {
 
   const executeDelete = async () => {
     if (!userToDelete) return;
+    setIsDeleting(true);
     const token = localStorage.getItem("token");
 
     try {
@@ -147,10 +152,11 @@ export default function UsersPage() {
       }
     } catch (err) {
       toast.error("An error occurred while deleting the user.");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setUserToDelete(null);
     }
-
-    setIsDeleteModalOpen(false);
-    setUserToDelete(null);
   };
 
   useEffect(() => {
@@ -371,8 +377,11 @@ export default function UsersPage() {
           />
 
           <div className="flex justify-end gap-3 mt-2 pt-5 border-t border-line">
-            <button type="button" className="btn ghost px-5 font-semibold" onClick={handleCloseForm}>Cancel</button>
-            <button type="submit" className="btn primary px-6 font-semibold shadow-sm">{editingUser ? "Save Changes" : "Create User"}</button>
+            <button type="button" disabled={isSubmitting} className="btn ghost px-5 font-semibold disabled:opacity-50" onClick={handleCloseForm}>Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="btn primary px-6 font-semibold shadow-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+               {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
+               {editingUser ? (isSubmitting ? "Saving..." : "Save Changes") : (isSubmitting ? "Creating..." : "Create User")}
+            </button>
           </div>
         </form>
       </Modal>
@@ -395,9 +404,10 @@ export default function UsersPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 w-full">
-            <button className="btn ghost w-full font-semibold" onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
-            <button className="btn bg-danger text-white hover:bg-danger/90 border-transparent shadow-sm w-full font-semibold" onClick={executeDelete}>
-              Yes, Delete
+            <button disabled={isDeleting} className="btn ghost w-full font-semibold disabled:opacity-50" onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
+            <button disabled={isDeleting} className="btn bg-danger text-white hover:bg-danger/90 border-transparent shadow-sm w-full font-semibold flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed" onClick={executeDelete}>
+              {isDeleting ? <Loader2 size={16} className="animate-spin" /> : null}
+              {isDeleting ? "Deleting..." : "Yes, Delete"}
             </button>
           </div>
         </div>

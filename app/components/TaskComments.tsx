@@ -42,6 +42,7 @@ export default function TaskComments({
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -124,6 +125,8 @@ export default function TaskComments({
   const handleSubmit = async (content?: string) => {
     const msg = (content ?? newComment).trim();
     if (!msg || msg === "<p></p>") return;
+    
+    setIsSending(true);
     try {
       const token = localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -158,6 +161,9 @@ export default function TaskComments({
       }
     } catch (e) {
       console.error(e);
+      toast.error("An error occurred");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -593,13 +599,14 @@ export default function TaskComments({
 
           {/* Send */}
           <button
-            type="button"
             onClick={() => handleSubmit()}
-            disabled={!newComment.trim() || newComment === "<p></p>"}
-            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-primary text-white shadow-sm hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 mb-0.5"
+            disabled={!newComment.trim() || isSending}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl shrink-0 transition-all shadow-sm ${
+              newComment.trim() && !isSending ? "bg-primary text-white shadow-primary/20 hover:bg-primary/90 hover:scale-105" : "bg-panel-2 text-muted cursor-not-allowed opacity-50"
+            }`}
             title="Send"
           >
-            <Send size={16} />
+            {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
         </div>
         <p className="text-[10px] text-muted/50 text-center mt-1.5">Enter to send · Shift+Enter for new line · Click image to view</p>

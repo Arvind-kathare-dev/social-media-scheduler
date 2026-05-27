@@ -22,6 +22,7 @@ export default function TasksPage() {
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -126,7 +127,7 @@ export default function TasksPage() {
 
     const confirmDelete = async () => {
         if (!taskToDelete) return;
-
+        setIsDeleting(true);
         try {
             const token = localStorage.getItem("token");
             const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -152,6 +153,7 @@ export default function TasksPage() {
         } catch (err) {
             toast.error("Failed to delete task.");
         } finally {
+            setIsDeleting(false);
             setIsDeleteModalOpen(false);
             setTaskToDelete(null);
         }
@@ -730,16 +732,19 @@ export default function TasksPage() {
                     </div>
                     <div className="flex gap-3">
                         <button
+                            disabled={isDeleting}
                             onClick={() => setIsDeleteModalOpen(false)}
-                            className="flex-1 btn bg-panel hover:bg-panel-2 border border-line text-text font-semibold py-2.5"
+                            className="flex-1 btn bg-panel hover:bg-panel-2 border border-line text-text font-semibold py-2.5 disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
+                            disabled={isDeleting}
                             onClick={confirmDelete}
-                            className="flex-1 btn bg-danger hover:bg-danger/90 text-white font-semibold py-2.5 shadow-sm"
+                            className="flex-1 btn bg-danger hover:bg-danger/90 text-white font-semibold py-2.5 shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            Delete Task
+                            {isDeleting ? <Loader2 size={16} className="animate-spin" /> : null}
+                            {isDeleting ? "Deleting..." : "Delete Task"}
                         </button>
                     </div>
                 </div>
