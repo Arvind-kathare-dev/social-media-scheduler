@@ -199,7 +199,7 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto h-full flex flex-col pb-6">
+    <div className="w-full mx-auto h-full flex flex-col px-6 pb-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -215,9 +215,9 @@ export default function UsersPage() {
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search users..." 
+            <input
+              type="text"
+              placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-panel-2 border border-line rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
@@ -243,12 +243,12 @@ export default function UsersPage() {
             <tbody className="text-sm">
               {(() => {
                 const allUsers = store.users || users;
-                const filteredUsers = allUsers.filter((u: any) => 
-                  u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                const filteredUsers = allUsers.filter((u: any) =>
+                  u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                   u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
                   u.role.toLowerCase().includes(searchQuery.toLowerCase())
                 );
-                
+
                 if (filteredUsers.length === 0) {
                   return (
                     <tr>
@@ -260,49 +260,50 @@ export default function UsersPage() {
                 }
 
                 return filteredUsers.map((u: any) => (
-                <tr key={u.id} className="border-b border-line last:border-0 hover:bg-panel-2/50 transition-colors group">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white font-bold flex items-center justify-center text-sm shadow-sm ring-2 ring-panel">
-                        {u.avatar}
+                  <tr key={u.id} className="border-b border-line last:border-0 hover:bg-panel-2/50 transition-colors group">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white font-bold flex items-center justify-center text-sm shadow-sm ring-2 ring-panel">
+                          {u.avatar}
+                        </div>
+                        <div>
+                          <strong className="block text-[15px] text-text font-bold leading-tight">{u.name}</strong>
+                        </div>
                       </div>
-                      <div>
-                        <strong className="block text-[15px] text-text font-bold leading-tight">{u.name}</strong>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex items-center px-2.5 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-widest ${roleColors[u.role] || "bg-panel-2 border-line"}`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex flex-col gap-1">
+                        <div className="truncate text-[13px] font-medium text-text">{u.email}</div>
+                        {u.mobile ? (
+                          <div className="text-[12px] text-muted">{u.mobile}</div>
+                        ) : (
+                          <div className="text-[11px] text-muted/50 italic">No phone</div>
+                        )}
                       </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className={`inline-flex items-center px-2.5 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-widest ${roleColors[u.role] || "bg-panel-2 border-line"}`}>
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <div className="flex flex-col gap-1">
-                      <div className="truncate text-[13px] font-medium text-text">{u.email}</div>
-                      {u.mobile ? (
-                        <div className="text-[12px] text-muted">{u.mobile}</div>
-                      ) : (
-                        <div className="text-[11px] text-muted/50 italic">No phone</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <div className="flex justify-end gap-2 transition-opacity">
-                      <button className="icon-btn w-8 h-8 rounded-lg bg-panel-2 text-muted hover:text-primary hover:bg-primary/10 transition-colors" onClick={() => handleOpenForm(u)} title="Edit user">
-                        <Edit2 size={16} />
-                      </button>
-                      {u.id !== currentUser.id && (
-                        <button className="icon-btn w-8 h-8 rounded-lg bg-panel-2 text-muted hover:text-danger hover:bg-danger/10 transition-colors" onClick={() => confirmDelete(u)} title="Delete user">
-                          <Trash2 size={16} />
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <div className="flex justify-end gap-2 transition-opacity">
+                        <button className="icon-btn w-8 h-8 rounded-lg bg-panel-2 text-muted hover:text-primary hover:bg-primary/10 transition-colors" onClick={() => handleOpenForm(u)} title="Edit user">
+                          <Edit2 size={16} />
                         </button>
-                      )}
-                      {u.id === currentUser.id && (
-                        <span className="text-[10px] uppercase font-bold text-muted bg-panel-2 px-2 py-1 rounded-md flex items-center">You</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))})()}
+                        {u.id !== currentUser.id && (
+                          <button className="icon-btn w-8 h-8 rounded-lg bg-panel-2 text-muted hover:text-danger hover:bg-danger/10 transition-colors" onClick={() => confirmDelete(u)} title="Delete user">
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                        {u.id === currentUser.id && (
+                          <span className="text-[10px] uppercase font-bold text-muted bg-panel-2 px-2 py-1 rounded-md flex items-center">You</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              })()}
             </tbody>
           </table>
         </div>

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Hash, ExternalLink, CheckCircle2, ThumbsUp, Link as LinkIcon, MoreHorizontal, X, Clock, AlertCircle, Upload, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Hash, ExternalLink, CheckCircle2, ThumbsUp, Link as LinkIcon, MoreHorizontal, X, Clock, AlertCircle, Upload, Image as ImageIcon, RotateCcw } from "lucide-react";
 import SlideOver from "./SlideOver";
 import Modal from "./Modal";
 import { useScheduler } from "../context/SchedulerContext";
@@ -9,6 +9,10 @@ import TaskComments from "./TaskComments";
 export default function TaskDetailModal({ isOpen, onClose, brief, user }: any) {
   const { store, updateStore, currentUser, users } = useScheduler();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const isAdmin = currentUser?.role === 'admin';
+  const addNotification = (store as any).addNotification || null;
+  const assignedIds = (Array.isArray(brief?.assignedToMulti) && brief.assignedToMulti.length > 0) ? brief.assignedToMulti : (Array.isArray(brief?.assignedTo) ? brief.assignedTo : (brief?.assignedTo ? [brief.assignedTo] : []));
+
   
   const safePlatforms = Array.isArray(brief?.platforms) ? brief.platforms : (typeof brief?.platforms === 'string' ? JSON.parse(brief.platforms || "[]") : []);
   const safeHashtags = Array.isArray(brief?.hashtags) ? brief.hashtags : (typeof brief?.hashtags === 'string' ? JSON.parse(brief.hashtags || "[]") : []);
@@ -17,65 +21,174 @@ export default function TaskDetailModal({ isOpen, onClose, brief, user }: any) {
     fileUrl: "",
     fileName: "",
     platform: safePlatforms[0] || "Instagram Feed",
-    note: ""
+    note: "",
+    liveLink: "",
+    docContent: "",
+    fileObj: null as File | null
   });
+
+  useEffect(() => {
+    if (brief && isOpen && !String(brief.id).startsWith('b')) {
+      const fetchSubmissions = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+          const res = await fetch(`${apiUrl}/tasks/${brief.id}/submissions`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.data) {
+              const formattedSubs = data.data.map((sub: any) => ({
+                id: sub.id,
+                briefId: String(sub.task_id),
+                files: typeof sub.files === 'string' ? JSON.parse(sub.files) : (sub.files || []),
+                designerNote: sub.designer_note,
+                docContent: sub.doc_content,
+                liveLink: sub.live_link,
+                uploadedAt: sub.created_at,
+                status: sub.status,
+                submittedBy: sub.submitted_by,
+                submittedByName: sub.submitted_by_name,
+                submitterRole: sub.submitter_role
+              }));
+              
+              updateStore((prev: any) => {
+                const otherUploads = (prev.uploads || []).filter((u: any) => String(u.briefId) !== String(brief.id));
+                return { ...prev, uploads: [...formattedSubs, ...otherUploads] };
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch submissions", err);
+        }
+      };
+      fetchSubmissions();
+    }
+  }, [brief?.id, isOpen]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
-      setUploadData(prev => ({ ...prev, fileUrl: url, fileName: file.name }));
+      setUploadData(prev => ({ ...prev, fileUrl: url, fileName: file.name, fileObj: file }));
     }
   };
 
   const handleSubmitWork = async () => {
-    if (!uploadData.fileName && !uploadData.fileUrl) {
-      toast.error("Please provide a file name or URL");
+    if (!uploadData.fileObj && !uploadData.fileUrl && !uploadData.liveLink && !uploadData.docContent.replace(/<[^>]*>/g,'').trim()) {
+      toast.error("Please provide at least a file, live link, or documentation");
       return;
     }
     
-    const newUpload = {
-      id: `up_${Date.now()}`,
-      briefId: brief.id,
-      files: [
-        { 
-          url: uploadData.fileUrl, 
-          platform: uploadData.platform, 
-          dimensions: "1080x1080", 
-          name: uploadData.fileName || "design_asset.png", 
-          type: "image/png" 
-        }
-      ],
-      designerNote: uploadData.note,
-      uploadedAt: new Date().toISOString(),
-      status: "pending"
-    };
-
     try {
+      let backendSubmission = null;
+      const token = localStorage.getItem("token");
+      if (token && !String(brief.id).startsWith('b')) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+        const formData = new FormData();
+        if (uploadData.fileObj) {
+            formData.append("files", uploadData.fileObj);
+        }
+        formData.append("live_link", uploadData.liveLink || "");
+        formData.append("doc_content", uploadData.docContent || "");
+        formData.append("designer_note", uploadData.note || "");
+        formData.append("platform", uploadData.platform || "");
+
+        const res = await fetch(`${apiUrl}/tasks/${brief.id}/submissions`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+          body: formData
+        });
+        
+        if (!res.ok) throw new Error("Failed to submit work");
+        const data = await res.json();
+        backendSubmission = data.data;
+      }
+      
+      const newUpload = backendSubmission ? {
+        id: backendSubmission.id,
+        briefId: brief.id,
+        files: backendSubmission.files ? (typeof backendSubmission.files === 'string' ? JSON.parse(backendSubmission.files) : backendSubmission.files) : [],
+        designerNote: backendSubmission.designer_note,
+        docContent: backendSubmission.doc_content,
+        liveLink: backendSubmission.live_link,
+        uploadedAt: backendSubmission.created_at,
+        status: backendSubmission.status,
+        submittedBy: backendSubmission.submitted_by,
+        submittedByName: currentUser.name,
+        submitterRole: currentUser.role
+      } : {
+        id: `up_${Date.now()}`,
+        briefId: brief.id,
+        files: uploadData.fileUrl ? [{ url: uploadData.fileUrl, platform: uploadData.platform, dimensions: "1080x1080", name: uploadData.fileName || "asset", type: "image/png" }] : [],
+        designerNote: uploadData.note,
+        docContent: uploadData.docContent,
+        liveLink: uploadData.liveLink,
+        uploadedAt: new Date().toISOString(),
+        status: "pending",
+        submittedBy: currentUser.id,
+        submittedByName: currentUser.name,
+        submitterRole: currentUser.role
+      };
+
       updateStore((prev: any) => ({
         ...prev,
         uploads: [newUpload, ...(prev.uploads || [])],
         briefs: prev.briefs.map((b: any) => b.id === brief.id ? { ...b, status: "uploaded" } : b)
       }));
 
-      const token = localStorage.getItem("token");
-      if (token && !String(brief.id).startsWith('b')) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-        await fetch(`${apiUrl}/tasks/${brief.id}/status`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ status: "uploaded" })
-        });
-      }
-
       toast.success("Assets submitted for review!");
       setIsUploadModalOpen(false);
+      setUploadData({ fileUrl: "", fileName: "", platform: safePlatforms[0] || "Instagram Feed", note: "", liveLink: "", docContent: "", fileObj: null });
     } catch (err) {
       console.error(err);
       toast.error("Failed to submit task to server");
+    }
+  };
+
+  const handleStatusUpdate = async (newStatus: string, uploadId?: string) => {
+    try {
+      updateStore((prev: any) => {
+        let nextUploads = prev.uploads || [];
+        if (uploadId) {
+          nextUploads = nextUploads.map((u: any) => u.id === uploadId ? { ...u, status: newStatus === 'approved' ? 'approved' : newStatus === 'revision' ? 'revision' : 'pending' } : u);
+        }
+        return {
+          ...prev,
+          uploads: nextUploads,
+          briefs: prev.briefs.map((b: any) => b.id === brief.id ? { ...b, status: newStatus } : b)
+        };
+      });
+
+      const token = localStorage.getItem("token");
+      if (token && !String(brief.id).startsWith('b')) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+        
+        if (uploadId && !String(uploadId).startsWith('up_')) {
+          await fetch(`${apiUrl}/tasks/submissions/${uploadId}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+            body: JSON.stringify({ status: newStatus === 'approved' ? 'approved' : newStatus === 'revision' ? 'revision' : 'pending' })
+          });
+        }
+        
+        await fetch(`${apiUrl}/tasks/${brief.id}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ status: newStatus })
+        });
+      }
+
+      // Notify assignees
+      assignedIds.forEach((uid: string) => {
+        addNotification?.(uid, `Admin ${newStatus === 'approved' ? 'approved' : newStatus === 'revision' ? 'requested revision on' : 'updated'} "${brief.title}"`);
+      });
+
+      const labels: any = { approved: 'Task approved!', revision: 'Revision requested', todo: 'Marked as pending', in_progress: 'Marked as in progress' };
+      toast.success(labels[newStatus] || 'Status updated');
+    } catch (err) {
+      toast.error("Failed to update status");
     }
   };
 
@@ -88,6 +201,7 @@ export default function TaskDetailModal({ isOpen, onClose, brief, user }: any) {
     switch (status) {
       case "todo": return "bg-panel-2 text-muted border-line";
       case "in_progress": return "bg-primary/10 text-primary border-primary/20";
+      case "qa": return "bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/30";
       case "revision": return "bg-warning/10 text-warning border-warning/30";
       case "uploaded": return "bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]/30";
       case "approved": 
@@ -100,6 +214,7 @@ export default function TaskDetailModal({ isOpen, onClose, brief, user }: any) {
     if (!status) return "";
     switch(status) {
       case "in_progress": return "In Progress";
+      case "qa": return "QA";
       case "uploaded": return "In Review";
       default: return status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ");
     }
@@ -334,6 +449,111 @@ export default function TaskDetailModal({ isOpen, onClose, brief, user }: any) {
                 </div>
               </div>
             )}
+
+            {/* Submitted Work Section */}
+            {store.uploads?.filter((u: any) => String(u.briefId) === String(brief.id)).length > 0 && (
+              <div className="mb-10 pt-8 border-t border-line">
+                <h3 className="font-extrabold text-xl text-text mb-6">Submitted Work</h3>
+                <div className="flex flex-col gap-6">
+                  {store.uploads?.filter((u: any) => String(u.briefId) === String(brief.id)).map((upload: any, idx: number) => (
+                    <div key={upload.id || idx} className={`border rounded-2xl p-6 ${upload.status === 'approved' ? 'bg-ok/5 border-ok/30' : upload.status === 'revision' ? 'bg-danger/5 border-danger/30' : 'bg-panel-2/50 border-line'}`}>
+                      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-extrabold text-primary uppercase tracking-widest flex items-center gap-2">
+                            <CheckCircle2 size={16} strokeWidth={3} /> Submission {idx + 1}
+                          </span>
+                          {upload.submittedByName && (
+                            <span className="text-[11px] font-bold text-muted">by {upload.submittedByName}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border ${
+                            upload.status === 'approved' ? 'bg-ok/10 text-ok border-ok/20' : 
+                            upload.status === 'revision' ? 'bg-danger/10 text-danger border-danger/20' : 
+                            'bg-panel-2 text-muted border-line'
+                          }`}>
+                            {upload.status === 'approved' ? '✓ Approved' : upload.status === 'revision' ? '↻ Revision' : '⏳ Pending Review'}
+                          </span>
+                          <span className="text-[11px] font-bold text-muted">
+                            {new Date(upload.uploadedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {upload.files?.map((f: any, fIdx: number) => (
+                          <a 
+                            key={fIdx} 
+                            href={f.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="flex items-center gap-4 p-4 bg-panel border border-line hover:border-primary/40 rounded-xl transition-colors shadow-sm group"
+                          >
+                            <div className="w-12 h-12 bg-panel-2 rounded-lg flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
+                              <ImageIcon size={24} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-text truncate group-hover:text-primary transition-colors m-0">
+                                {f.name || "Design Asset"}
+                              </h4>
+                              <span className="text-[10px] font-bold text-muted uppercase tracking-wider mt-1 inline-block bg-panel-2 px-2 py-0.5 rounded">
+                                {f.platform}
+                              </span>
+                            </div>
+                            <ExternalLink size={16} className="text-muted group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </a>
+                        ))}
+                      </div>
+
+                      {upload.liveLink && (
+                        <div className="mt-4">
+                          <a href={upload.liveLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-3 bg-panel border border-line hover:border-primary/40 rounded-xl text-primary text-sm font-bold shadow-sm transition-all">
+                            <LinkIcon size={16} /> View Live Link / Preview
+                            <ExternalLink size={14} className="ml-1 opacity-70" />
+                          </a>
+                        </div>
+                      )}
+
+                      {upload.docContent && (upload.docContent.replace(/<[^>]*>/g, '').trim() !== '' || upload.docContent.includes('<img')) && (
+                        <div className="mt-4 bg-panel border border-line rounded-xl overflow-hidden shadow-sm">
+                          <div className="bg-panel-2/50 px-4 py-2.5 border-b border-line text-[11px] font-extrabold text-muted uppercase tracking-widest flex items-center gap-2">
+                            <AlertCircle size={14} /> Documentation & Screenshots
+                          </div>
+                          <div className="p-5 task-notes-preview text-sm text-text leading-relaxed" dangerouslySetInnerHTML={{ __html: upload.docContent }} />
+                        </div>
+                      )}
+
+                      {upload.designerNote && (
+                        <div className="mt-4 bg-panel p-4 rounded-xl border border-line flex gap-3 shadow-sm">
+                          <AlertCircle size={16} className="text-muted shrink-0 mt-0.5" />
+                          <div className="text-sm text-text">
+                            <span className="font-bold text-[11px] text-muted block mb-1 uppercase tracking-wider">Submitter's Note</span>
+                            <p className="m-0 leading-relaxed font-medium">{upload.designerNote}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Admin Review Actions per Upload */}
+                      {isAdmin && upload.status !== 'approved' && (
+                        <div className="mt-5 pt-4 border-t border-line/50 flex items-center gap-3">
+                          <button onClick={() => handleStatusUpdate('approved', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ok text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm">
+                            <CheckCircle2 size={14} /> Approve
+                          </button>
+                          <button onClick={() => handleStatusUpdate('revision', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-warning/50 text-sm font-bold text-warning hover:bg-warning/10 transition-all">
+                            <RotateCcw size={14} /> Request Revision
+                          </button>
+                        </div>
+                      )}
+                      {isAdmin && upload.status === 'approved' && (
+                        <div className="mt-4 flex items-center gap-2 text-ok text-sm font-bold">
+                          <CheckCircle2 size={16} /> This submission has been approved
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             </div>
 
             <div className="bg-panel border border-line rounded-2xl shadow-sm p-6 md:p-8 mb-6">
@@ -417,8 +637,8 @@ export default function TaskDetailModal({ isOpen, onClose, brief, user }: any) {
               type="url" 
               placeholder="https://"
               className="input"
-              value={uploadData.fileUrl}
-              onChange={(e) => setUploadData({...uploadData, fileUrl: e.target.value})}
+              value={uploadData.liveLink}
+              onChange={(e) => setUploadData({...uploadData, liveLink: e.target.value})}
             />
           </div>
 

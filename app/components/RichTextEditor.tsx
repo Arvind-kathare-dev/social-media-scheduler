@@ -90,7 +90,7 @@ export default function RichTextEditor({ value, onChange, placeholder, users = [
         autolink: true,
         linkOnPaste: true,
       }),
-      Image,
+      Image.configure({ allowBase64: true }),
       Placeholder.configure({ placeholder: placeholder || 'Type notes for assignee...' })
     ],
     content: value || '',

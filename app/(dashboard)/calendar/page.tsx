@@ -53,8 +53,9 @@ export default function CalendarPage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   
   const days = [];
-  for (let i = 0; i < firstDay; i++) days.push(null); // padding
+  for (let i = 0; i < firstDay; i++) days.push(null); // start padding
   for (let i = 1; i <= daysInMonth; i++) days.push(i);
+  while (days.length % 7 !== 0) days.push(null); // end padding
 
   const getDayEvents = (day: number | null) => {
     if (!day) return [];
@@ -66,21 +67,24 @@ export default function CalendarPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "todo": return "bg-panel-2 border-line text-muted";
-      case "in_progress": return "bg-primary/10 border-primary/20 text-primary";
-      case "revision": return "bg-warning/10 border-warning/30 text-warning";
-      case "uploaded": return "bg-[#8b5cf6]/10 border-[#8b5cf6]/30 text-[#8b5cf6]"; // Purple for Review
+      case "todo": return "bg-panel-2 text-muted border-line";
+      case "in_progress": return "bg-primary/10 text-primary border-primary/20";
+      case "qa": return "bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/30";
+      case "revision": return "bg-warning/10 text-warning border-warning/30";
+      case "uploaded": return "bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]/30";
       case "approved": 
-      case "completed": return "bg-ok/10 border-ok/30 text-ok";
-      default: return "bg-panel-2 border-line text-muted";
+      case "completed": return "bg-ok/10 text-ok border-ok/30";
+      default: return "bg-panel-2 text-muted border-line";
     }
   };
 
   const getStatusLabel = (status: string) => {
+    if (!status) return "";
     switch(status) {
       case "in_progress": return "In Progress";
+      case "qa": return "QA";
       case "uploaded": return "In Review";
-      default: return status.charAt(0).toUpperCase() + status.slice(1);
+      default: return status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ");
     }
   };
 
@@ -88,7 +92,7 @@ export default function CalendarPage() {
   const agendaTasks = [...calendarTasks].filter(t => t.dueDate).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   return (
-    <div className="max-w-7xl mx-auto flex flex-col h-full pb-6">
+    <div className="w-full mx-auto flex flex-col h-full pb-6 px-2 sm:px-6">
       
       {/* Header */}
       <div className="page-title mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
@@ -165,19 +169,20 @@ export default function CalendarPage() {
 
         {/* Month View */}
         {view === 'Month' ? (
-          <div className="grid grid-cols-7 flex-1 bg-line/20">
-            {weekdays.map(d => (
-              <div key={d} className="p-3 font-extrabold text-muted text-xs uppercase tracking-widest bg-panel-2 border-b border-line text-center">
-                {d}
-              </div>
-            ))}
+          <div className="flex-1 overflow-auto bg-panel custom-scrollbar">
+            <div className="min-w-[900px] grid grid-cols-7 bg-line/20 min-h-full">
+              {weekdays.map(d => (
+                <div key={d} className="p-3 font-extrabold text-muted text-xs uppercase tracking-widest bg-panel-2 border-b border-line text-center sticky top-0 z-10 shadow-sm">
+                  {d}
+                </div>
+              ))}
             
             {days.map((day, i) => {
               const events = getDayEvents(day);
               const isToday = day === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear();
               
               return (
-                <div key={i} className={`min-h-[140px] p-2 bg-panel border-b border-r border-line/50 transition-colors ${!day ? 'bg-panel-2/30' : 'hover:bg-panel-2/10'}`}>
+                <div key={i} className={`min-h-[140px] p-2 sm:p-3 flex flex-col bg-panel border-b border-r border-line/50 transition-colors ${!day ? 'bg-panel-2/30' : 'hover:bg-panel-2/10'}`}>
                   {day && (
                     <>
                       <div className="flex justify-between items-start mb-2">
@@ -217,6 +222,7 @@ export default function CalendarPage() {
                 </div>
               );
             })}
+            </div>
           </div>
         ) : (
           /* Agenda / List View */

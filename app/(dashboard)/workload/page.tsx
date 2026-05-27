@@ -54,7 +54,7 @@ export default function WorkloadPage() {
   const totalInProgress = tasks.filter((t: any) => t.status === 'in_progress').length;
 
   return (
-    <div className="max-w-7xl mx-auto h-full flex flex-col pb-6">
+    <div className="w-full mx-auto h-full flex flex-col px-6 pb-6">
       <div className="mb-6 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -67,7 +67,7 @@ export default function WorkloadPage() {
             Click on a team member's card to monitor their active tasks and manage workload distribution.
           </p>
         </div>
-        
+
         {/* Global Quick Stats */}
         <div className="flex gap-4">
           <div className="bg-panel border border-line rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm min-w-[140px]">
@@ -101,11 +101,11 @@ export default function WorkloadPage() {
           const uCompleted = uTasks.filter((t: any) => ['approved', 'completed', 'uploaded'].includes(t.status)).length;
           const uActive = uTasks.filter((t: any) => t.status === 'in_progress').length;
           const uPending = uTasks.filter((t: any) => ['todo', 'revision'].includes(t.status)).length;
-          
+
           const progressPercentage = uTasks.length > 0 ? Math.round((uCompleted / uTasks.length) * 100) : 0;
 
           return (
-            <div 
+            <div
               key={u.id}
               onClick={() => setSelectedUserId(u.id)}
               className="bg-panel border border-line rounded-2xl p-5 shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group flex flex-col h-full relative overflow-hidden"
@@ -160,9 +160,9 @@ export default function WorkloadPage() {
       </div>
 
       {/* Centered Modal for Detailed Workload (Table View) */}
-      <Modal 
-        isOpen={!!selectedUserId} 
-        onClose={() => setSelectedUserId(null)} 
+      <Modal
+        isOpen={!!selectedUserId}
+        onClose={() => setSelectedUserId(null)}
         title={selectedUser ? `${selectedUser.name}'s Workload` : "User Workload"}
         maxWidth="max-w-5xl"
       >
@@ -214,7 +214,7 @@ export default function WorkloadPage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-8">
-                  
+
                   {/* Current Focus Table */}
                   {inProgressTasks.length > 0 && (
                     <div>
@@ -237,11 +237,10 @@ export default function WorkloadPage() {
                               <tr key={t.id} className="hover:bg-panel-2/30 transition-colors">
                                 <td className="px-4 py-3 font-semibold text-text">{t.title}</td>
                                 <td className="px-4 py-3">
-                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider ${
-                                    t.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' : 
-                                    t.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' : 
-                                    'bg-panel-2 text-text border border-line'
-                                  }`}>
+                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider ${t.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' :
+                                      t.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' :
+                                        'bg-panel-2 text-text border border-line'
+                                    }`}>
                                     {t.priority}
                                   </span>
                                 </td>
@@ -281,11 +280,10 @@ export default function WorkloadPage() {
                               <tr key={t.id} className="hover:bg-panel-2/30 transition-colors">
                                 <td className="px-4 py-3 font-semibold text-text">{t.title}</td>
                                 <td className="px-4 py-3">
-                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider ${
-                                    t.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' : 
-                                    t.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' : 
-                                    'bg-panel-2 text-text border border-line'
-                                  }`}>
+                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider ${t.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' :
+                                      t.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' :
+                                        'bg-panel-2 text-text border border-line'
+                                    }`}>
                                     {t.priority}
                                   </span>
                                 </td>
@@ -327,19 +325,17 @@ export default function WorkloadPage() {
                               <tr key={t.id} className="hover:bg-panel-2/30 transition-colors">
                                 <td className="px-4 py-3 font-semibold text-text line-through opacity-70">{t.title}</td>
                                 <td className="px-4 py-3">
-                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider ${
-                                    t.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' : 
-                                    t.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' : 
-                                    'bg-panel-2 text-text border border-line'
-                                  }`}>
+                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider ${t.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' :
+                                      t.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' :
+                                        'bg-panel-2 text-text border border-line'
+                                    }`}>
                                     {t.priority}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-muted font-medium">{t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '-'}</td>
                                 <td className="px-4 py-3 text-right">
-                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider border ${
-                                    t.status === 'uploaded' ? 'bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]/30' : 'bg-ok/10 text-ok border-ok/30'
-                                  }`}>
+                                  <span className={`px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider border ${t.status === 'uploaded' ? 'bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]/30' : 'bg-ok/10 text-ok border-ok/30'
+                                    }`}>
                                     {t.status === 'uploaded' ? 'In Review' : 'Done'}
                                   </span>
                                 </td>
@@ -350,7 +346,7 @@ export default function WorkloadPage() {
                       </div>
                     </div>
                   )}
-                  
+
                 </div>
               )}
             </div>

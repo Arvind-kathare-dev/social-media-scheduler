@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Download, Copy, Check, Filter, Search, Image as ImageIcon, ExternalLink, Calendar as CalendarIcon, Tag, Clock, Folder, FolderPlus, ArrowLeft, Users as UsersIcon, Edit2, Trash2, FileText, File, Video, Eye, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Download, Copy, Check, Filter, Search, Image as ImageIcon, ExternalLink, Calendar as CalendarIcon, Tag, Clock, Folder, FolderPlus, ArrowLeft, Users as UsersIcon, Edit2, Trash2, FileText, File, Video, Eye, ChevronLeft, ChevronRight, X, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
+import Modal from "../../components/Modal";
 
 export default function LibraryPage() {
   const { store, users, updateStore, currentUserId, currentUser } = useScheduler();
@@ -16,9 +17,10 @@ export default function LibraryPage() {
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [isDeleteFolderModalOpen, setIsDeleteFolderModalOpen] = useState(false);
   const [folderData, setFolderData] = useState({ name: "", assignedTo: [] as string[], platforms: [] as string[] });
   const [folderAssigneeRole, setFolderAssigneeRole] = useState("designer");
-  
+
   const [viewingAsset, setViewingAsset] = useState<any | null>(null);
   const [viewIndex, setViewIndex] = useState(0);
 
@@ -35,8 +37,8 @@ export default function LibraryPage() {
   const activeFolderHasDesignerOrEditor = activeFolderAssignees.some(
     (u: any) => u?.role === 'designer' || u?.role === 'editor'
   );
-  const showPlatformField = ['designer', 'editor'].includes(currentUser?.role || '') || 
-                            (isAdmin && activeFolderHasDesignerOrEditor);
+  const showPlatformField = ['designer', 'editor'].includes(currentUser?.role || '') ||
+    (isAdmin && activeFolderHasDesignerOrEditor);
 
   const STANDARD_PLATFORMS = [
     "Instagram Feed",
@@ -47,7 +49,7 @@ export default function LibraryPage() {
     "Pinterest",
     "YouTube Shorts"
   ];
-  
+
   const libraryItems = useMemo(() => {
     const items: any[] = [];
     const uploads = store.uploads || [];
@@ -101,8 +103,8 @@ export default function LibraryPage() {
     if (!activeFolderId) return [];
     return libraryItems.filter((item: any) => {
       const inFolder = item.folderId === activeFolderId;
-      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           (item.copy && item.copy.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.copy && item.copy.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesPlatform = platformFilter === "All" || (item.platforms && item.platforms.includes(platformFilter));
       return inFolder && matchesSearch && matchesPlatform;
     });
@@ -122,7 +124,7 @@ export default function LibraryPage() {
     if (activeFolder && activeFolder.platforms && activeFolder.platforms.length > 0) {
       return ["All", ...activeFolder.platforms];
     }
-    
+
     const platforms = new Set<string>();
     libraryItems
       .filter((item: any) => item.folderId === activeFolderId)
@@ -146,7 +148,7 @@ export default function LibraryPage() {
   const handleDownload = async (item: any) => {
     if (item.files && item.files.length > 0) {
       toast.success(`Downloading ${item.files.length} asset(s)...`);
-      
+
       for (let i = 0; i < item.files.length; i++) {
         const file = item.files[i];
         if (file.url) {
@@ -156,7 +158,7 @@ export default function LibraryPage() {
               const response = await fetch(file.url);
               const blob = await response.blob();
               const blobUrl = window.URL.createObjectURL(blob);
-              
+
               const a = document.createElement("a");
               a.href = blobUrl;
               a.download = file.name || "download";
@@ -179,7 +181,7 @@ export default function LibraryPage() {
             window.open(file.url, "_blank");
           }
         }
-        
+
         // Stagger multiple downloads to prevent aggressive browser blocking
         if (item.files.length > 1 && i < item.files.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -202,9 +204,9 @@ export default function LibraryPage() {
       toast.error("This folder has no approved assets to download.");
       return;
     }
-    
+
     const loadingToast = toast.loading(`Preparing ${folderName}.zip...`);
-    
+
     try {
       // Dynamic import for jszip so we don't block initial page load
       const JSZip = (await import('jszip')).default;
@@ -219,11 +221,11 @@ export default function LibraryPage() {
               try {
                 const response = await fetch(file.url);
                 const blob = await response.blob();
-                
+
                 // Group multi-file assets into their own subfolder, otherwise put in root
                 const folderPath = asset.files.length > 1 ? `${asset.title}/` : "";
                 const fileName = file.name || `file_${i}.png`;
-                
+
                 zip.file(`${folderPath}${fileName}`, blob);
                 hasFiles = true;
               } catch (e) {
@@ -269,7 +271,7 @@ export default function LibraryPage() {
     formData.append("title", uploadData.title);
     formData.append("platform", uploadData.platform);
     formData.append("copy", uploadData.copy);
-    
+
     if (activeFolderId) {
       formData.append("folderId", activeFolderId);
     }
@@ -296,7 +298,7 @@ export default function LibraryPage() {
       });
 
       const data = await res.json();
-      
+
       if (res.ok) {
         const newUpload = {
           id: data.data.id.toString(),
@@ -332,7 +334,7 @@ export default function LibraryPage() {
     if (confirm("Are you sure you want to delete this asset?")) {
       const token = localStorage.getItem("token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-      
+
       const loadingToast = toast.loading("Deleting asset...");
       try {
         const res = await fetch(`${apiUrl}/assets/${assetId}`, {
@@ -342,7 +344,7 @@ export default function LibraryPage() {
           }
         });
         const data = await res.json();
-        
+
         if (res.ok) {
           updateStore((prev: any) => ({
             ...prev,
@@ -423,7 +425,7 @@ export default function LibraryPage() {
         toast.error("Server error while creating folder");
       }
     }
-    
+
     setIsFolderModalOpen(false);
     setFolderData({ name: "", assignedTo: [], platforms: [] });
     setEditingFolderId(null);
@@ -431,36 +433,36 @@ export default function LibraryPage() {
 
   const handleDeleteFolder = async () => {
     if (!editingFolderId) return;
-    if (confirm("Are you sure you want to delete this folder? Assets will be moved to the General Library.")) {
-      const token = localStorage.getItem("token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-      
-      try {
-        const res = await fetch(`${apiUrl}/folders/${editingFolderId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (res.ok) {
-          updateStore((prev: any) => ({
-            ...prev,
-            folders: prev.folders.filter((f: any) => f.id !== editingFolderId),
-            uploads: prev.uploads?.map((u: any) => u.folderId === editingFolderId ? { ...u, folderId: null } : u) || []
-          }));
-          toast.success("Folder deleted.");
-        } else {
-          toast.error("Failed to delete folder");
+
+    const token = localStorage.getItem("token");
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+    try {
+      const res = await fetch(`${apiUrl}/folders/${editingFolderId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (err) {
-        toast.error("Server error while deleting folder");
+      });
+
+      if (res.ok) {
+        updateStore((prev: any) => ({
+          ...prev,
+          folders: prev.folders.filter((f: any) => f.id !== editingFolderId),
+          uploads: prev.uploads?.map((u: any) => u.folderId === editingFolderId ? { ...u, folderId: null } : u) || []
+        }));
+        toast.success("Folder deleted.");
+      } else {
+        toast.error("Failed to delete folder");
       }
-      
-      setIsFolderModalOpen(false);
-      setEditingFolderId(null);
-      setActiveFolderId(null);
+    } catch (err) {
+      toast.error("Server error while deleting folder");
     }
+
+    setIsDeleteFolderModalOpen(false);
+    setIsFolderModalOpen(false);
+    setEditingFolderId(null);
+    setActiveFolderId(null);
   };
 
   const toggleFolderAssignee = (userId: string) => {
@@ -486,14 +488,14 @@ export default function LibraryPage() {
         if (allFiles.length > 1) {
           autoTitle = `${allFiles.length} files selected (${allFiles[0].name}, etc)`;
         }
-        
-        // If current title is empty, or matches previous auto-title pattern, or matches previous first file name, update it.
-        const shouldUpdateTitle = !prev.title || 
-                                  prev.title === prev.files?.[0]?.name || 
-                                  prev.title.includes("files selected");
 
-        return { 
-          ...prev, 
+        // If current title is empty, or matches previous auto-title pattern, or matches previous first file name, update it.
+        const shouldUpdateTitle = !prev.title ||
+          prev.title === prev.files?.[0]?.name ||
+          prev.title.includes("files selected");
+
+        return {
+          ...prev,
           files: allFiles,
           title: shouldUpdateTitle ? autoTitle : prev.title
         };
@@ -502,8 +504,8 @@ export default function LibraryPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto h-full flex flex-col pb-6">
-      
+    <div className="w-full mx-auto h-full flex flex-col px-6 pb-6">
+
       {/* Header */}
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 bg-panel p-6 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
@@ -511,7 +513,7 @@ export default function LibraryPage() {
           <h1 className="text-3xl font-black m-0 text-text tracking-tight flex items-center gap-3">
             {activeFolderId ? (
               <>
-                <button 
+                <button
                   onClick={() => { setActiveFolderId(null); setSearchQuery(""); setPlatformFilter("All"); }}
                   className="p-2 hover:bg-panel-2 rounded-xl text-muted hover:text-text transition-colors mr-1"
                 >
@@ -530,15 +532,15 @@ export default function LibraryPage() {
             )}
           </h1>
           <p className="text-muted text-sm mt-3 max-w-xl font-medium leading-relaxed">
-            {activeFolderId 
-              ? "Browse, manage, and download all approved assets for this specific project." 
+            {activeFolderId
+              ? "Browse, manage, and download all approved assets for this specific project."
               : "Access all your project folders. Select a project to view its approved assets and campaigns."}
           </p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3 relative z-10 w-full sm:w-auto">
           {!activeFolderId && isAdmin && (
-            <button 
+            <button
               onClick={() => {
                 setEditingFolderId(null);
                 setFolderData({ name: "", assignedTo: [], platforms: [] });
@@ -550,9 +552,9 @@ export default function LibraryPage() {
               <FolderPlus size={18} /> Create Project
             </button>
           )}
-          
+
           {activeFolderId && !isAdmin && (
-            <button 
+            <button
               onClick={() => handleDownloadFolder(activeFolderId, folders.find((f: any) => f.id === activeFolderId)?.name || "Folder")}
               className="w-full sm:w-auto btn bg-panel-2 text-text border border-line px-5 py-2.5 text-sm font-bold shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
@@ -561,7 +563,7 @@ export default function LibraryPage() {
           )}
 
           {activeFolderId && isAdmin && (
-            <button 
+            <button
               onClick={() => {
                 setUploadData(prev => ({ ...prev, folderId: activeFolderId || "" }));
                 setIsUploadModalOpen(true);
@@ -578,21 +580,21 @@ export default function LibraryPage() {
       <div className="flex flex-col sm:flex-row gap-4 mb-8">
         <div className="relative flex-1">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder={activeFolderId ? "Search assets in this project..." : "Search project folders by name..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-panel border border-line rounded-2xl pl-11 pr-4 py-3.5 text-sm outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all text-text placeholder:text-muted/70 shadow-sm font-medium"
           />
         </div>
-        
+
         {activeFolderId && (
           <div className="flex items-center gap-2 bg-panel border border-line rounded-2xl px-4 py-2 min-w-[200px] shadow-sm">
             <Filter size={16} className="text-muted shrink-0" />
-            <select 
-              className="bg-transparent border-none text-sm font-bold outline-none text-text w-full cursor-pointer pr-2 focus:ring-0" 
-              value={platformFilter} 
+            <select
+              className="bg-transparent border-none text-sm font-bold outline-none text-text w-full cursor-pointer pr-2 focus:ring-0"
+              value={platformFilter}
               onChange={(e) => setPlatformFilter(e.target.value)}
             >
               {allPlatforms.map(p => <option key={p} value={p}>{p === 'All' ? 'All Platforms' : p}</option>)}
@@ -607,22 +609,22 @@ export default function LibraryPage() {
           {visibleFolders.length > 0 ? (
             visibleFolders.map((folder: any) => {
               const assetCount = libraryItems.filter((item: any) => item.folderId === folder.id).length;
-              
+
               return (
-                <div 
-                  key={folder.id} 
+                <div
+                  key={folder.id}
                   onClick={() => { setActiveFolderId(folder.id); setSearchQuery(""); }}
                   className="bg-panel border border-line rounded-3xl p-6 flex flex-col gap-4 cursor-pointer hover:border-primary/50 hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-bl-[100px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                  
+
                   <div className="flex justify-between items-start z-10">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/10 text-primary flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                       <Folder size={28} className="fill-primary/20" />
                     </div>
-                    
+
                     {isAdmin && (
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           const firstAssignedUser = users.find((u: any) => folder.assignedTo.includes(u.id));
@@ -638,7 +640,7 @@ export default function LibraryPage() {
                       </button>
                     )}
                   </div>
-                  
+
                   <div className="mt-2 z-10">
                     <h3 className="font-extrabold text-text text-lg truncate mb-1.5 group-hover:text-primary transition-colors">{folder.name}</h3>
                     <div className="flex items-center gap-4">
@@ -663,7 +665,7 @@ export default function LibraryPage() {
                 {searchQuery ? "No projects match your search criteria." : "Get started by creating your first project folder. You can assign specific team members and organize all your creative assets."}
               </p>
               {!searchQuery && isAdmin && (
-                <button 
+                <button
                   onClick={() => setIsFolderModalOpen(true)}
                   className="mt-6 btn primary px-6 py-3 font-bold shadow-md shadow-primary/20"
                 >
@@ -680,120 +682,120 @@ export default function LibraryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayedAssets.length > 0 ? (
             displayedAssets.map((item: any) => {
-            const author = users.find((u: any) => u.id === item.authorId);
-            
-            return (
-              <div key={item.id} className="bg-panel border border-line rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-                {/* Visual Asset */}
-                <div className="aspect-[4/3] bg-panel-2 relative overflow-hidden flex flex-col items-center justify-center p-6 text-center">
-                  {item.files?.length > 0 ? (
-                    <>
-                      {item.files[0].url?.startsWith('blob:') || item.files[0].type?.startsWith('image') || item.files[0].url?.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                        <img src={item.files[0].url} alt="Preview" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      ) : item.files[0].type?.includes('pdf') || item.files[0].url?.match(/\.pdf$/i) ? (
-                        <div className="flex flex-col items-center justify-center opacity-80 w-full">
-                          <FileText size={48} className="text-primary mb-3" />
-                          <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "PDF Document"}</span>
-                        </div>
-                      ) : item.files[0].type?.includes('video') || item.files[0].url?.match(/\.(mp4|webm|mov)$/i) ? (
-                        <div className="flex flex-col items-center justify-center opacity-80 w-full">
-                          <Video size={48} className="text-primary mb-3" />
-                          <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "Video File"}</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center opacity-80 w-full">
-                          <File size={48} className="text-muted mb-3" />
-                          <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "Document"}</span>
-                        </div>
-                      )}
-                      
-                      {item.files.length > 1 && (
-                        <div className="absolute top-3 right-3 bg-black/60 text-white text-[11px] font-bold px-2.5 py-1 rounded-md backdrop-blur-md z-20 flex items-center gap-1.5 shadow-lg border border-white/10">
-                          <Copy size={12} /> {item.files.length}
-                        </div>
-                      )}
-                    </>
-                  ) : item.visualReference ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center">
-                      <div className="absolute inset-0 bg-primary/5"></div>
-                      <ImageIcon size={48} className="text-primary/40 mb-2" />
-                      <span className="text-sm font-bold text-muted">Visual Reference</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center opacity-50">
-                      <ImageIcon size={48} className="text-muted mb-3" />
-                      <span className="text-sm font-bold text-muted">Asset Missing</span>
-                    </div>
-                  )}
-                  
-                  {/* Quick Action Overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3 z-30 backdrop-blur-[2px]">
-                    {item.files?.[0]?.url && (
-                      <button 
-                        onClick={() => { setViewingAsset(item); setViewIndex(0); }}
-                        className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all transform translate-y-4 group-hover:translate-y-0" 
-                        title="View Asset"
-                      >
-                        <Eye size={16} />
-                      </button>
-                    )}
-                    {!isAdmin && (
-                      <button 
-                        onClick={() => handleDownload(item)}
-                        className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
-                        title="Download Asset"
-                      >
-                        <Download size={16} />
-                      </button>
-                    )}
-                    {(isAdmin || currentUserId === item.authorId) && item.isDirect && (
-                      <button 
-                        onClick={() => handleDeleteAsset(item.id)}
-                        className="w-10 h-10 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
-                        title="Delete Asset"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                </div>
+              const author = users.find((u: any) => u.id === item.authorId);
 
-                {/* Content Details */}
-                <div className="p-4 flex flex-col gap-3 bg-panel relative border-t border-line/50">
-                  <div className="flex justify-between items-start gap-3">
-                    <h3 className="font-extrabold text-sm text-text leading-tight line-clamp-2" title={item.title}>{item.title}</h3>
-                    {item.dueDate && (
-                      <span className="text-[10px] font-bold text-muted bg-panel-2 px-2 py-1 rounded-md border border-line shrink-0 flex items-center gap-1">
-                        <Clock size={10} /> {new Date(item.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                      </span>
+              return (
+                <div key={item.id} className="bg-panel border border-line rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
+                  {/* Visual Asset */}
+                  <div className="aspect-[4/3] bg-panel-2 relative overflow-hidden flex flex-col items-center justify-center p-6 text-center">
+                    {item.files?.length > 0 ? (
+                      <>
+                        {item.files[0].url?.startsWith('blob:') || item.files[0].type?.startsWith('image') || item.files[0].url?.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                          <img src={item.files[0].url} alt="Preview" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        ) : item.files[0].type?.includes('pdf') || item.files[0].url?.match(/\.pdf$/i) ? (
+                          <div className="flex flex-col items-center justify-center opacity-80 w-full">
+                            <FileText size={48} className="text-primary mb-3" />
+                            <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "PDF Document"}</span>
+                          </div>
+                        ) : item.files[0].type?.includes('video') || item.files[0].url?.match(/\.(mp4|webm|mov)$/i) ? (
+                          <div className="flex flex-col items-center justify-center opacity-80 w-full">
+                            <Video size={48} className="text-primary mb-3" />
+                            <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "Video File"}</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center opacity-80 w-full">
+                            <File size={48} className="text-muted mb-3" />
+                            <span className="text-sm font-bold text-muted truncate max-w-full px-4">{item.files[0].name || "Document"}</span>
+                          </div>
+                        )}
+
+                        {item.files.length > 1 && (
+                          <div className="absolute top-3 right-3 bg-black/60 text-white text-[11px] font-bold px-2.5 py-1 rounded-md backdrop-blur-md z-20 flex items-center gap-1.5 shadow-lg border border-white/10">
+                            <Copy size={12} /> {item.files.length}
+                          </div>
+                        )}
+                      </>
+                    ) : item.visualReference ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center">
+                        <div className="absolute inset-0 bg-primary/5"></div>
+                        <ImageIcon size={48} className="text-primary/40 mb-2" />
+                        <span className="text-sm font-bold text-muted">Visual Reference</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center opacity-50">
+                        <ImageIcon size={48} className="text-muted mb-3" />
+                        <span className="text-sm font-bold text-muted">Asset Missing</span>
+                      </div>
                     )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[8px] font-bold shadow-sm">
-                      {author?.avatar || author?.name?.charAt(0) || "U"}
+
+                    {/* Quick Action Overlay */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3 z-30 backdrop-blur-[2px]">
+                      {item.files?.[0]?.url && (
+                        <button
+                          onClick={() => { setViewingAsset(item); setViewIndex(0); }}
+                          className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all transform translate-y-4 group-hover:translate-y-0"
+                          title="View Asset"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      )}
+                      {!isAdmin && (
+                        <button
+                          onClick={() => handleDownload(item)}
+                          className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
+                          title="Download Asset"
+                        >
+                          <Download size={16} />
+                        </button>
+                      )}
+                      {(isAdmin || currentUserId === item.authorId) && item.isDirect && (
+                        <button
+                          onClick={() => handleDeleteAsset(item.id)}
+                          className="w-10 h-10 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:scale-105 transition-all transform translate-y-4 group-hover:translate-y-0 shadow-lg"
+                          title="Delete Asset"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
-                    <span className="text-xs font-semibold text-muted truncate">{author?.name || "Designer"}</span>
+                  </div>
+
+                  {/* Content Details */}
+                  <div className="p-4 flex flex-col gap-3 bg-panel relative border-t border-line/50">
+                    <div className="flex justify-between items-start gap-3">
+                      <h3 className="font-extrabold text-sm text-text leading-tight line-clamp-2" title={item.title}>{item.title}</h3>
+                      {item.dueDate && (
+                        <span className="text-[10px] font-bold text-muted bg-panel-2 px-2 py-1 rounded-md border border-line shrink-0 flex items-center gap-1">
+                          <Clock size={10} /> {new Date(item.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[8px] font-bold shadow-sm">
+                        {author?.avatar || author?.name?.charAt(0) || "U"}
+                      </div>
+                      <span className="text-xs font-semibold text-muted truncate">{author?.name || "Designer"}</span>
+                    </div>
                   </div>
                 </div>
+              );
+            })
+          ) : (
+            <div className="col-span-full flex flex-col items-center justify-center py-20 text-center bg-panel border-2 border-dashed border-line/60 rounded-3xl">
+              <div className="w-16 h-16 bg-panel-2 rounded-full flex items-center justify-center text-muted border border-line mb-4 shadow-sm">
+                <ImageIcon size={24} />
               </div>
-            );
-          })
-        ) : (
-          <div className="col-span-full flex flex-col items-center justify-center py-20 text-center bg-panel border-2 border-dashed border-line/60 rounded-3xl">
-            <div className="w-16 h-16 bg-panel-2 rounded-full flex items-center justify-center text-muted border border-line mb-4 shadow-sm">
-              <ImageIcon size={24} />
+              <h3 className="text-xl font-bold text-text mb-2">No approved assets yet</h3>
+              <p className="text-muted max-w-md">
+                Tasks that are marked as "Approved" will automatically appear here for easy downloading and publishing.
+              </p>
             </div>
-            <h3 className="text-xl font-bold text-text mb-2">No approved assets yet</h3>
-            <p className="text-muted max-w-md">
-              Tasks that are marked as "Approved" will automatically appear here for easy downloading and publishing.
-            </p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       )}
 
-          {/* Upload Modal (Only triggered from inside a folder) */}
+      {/* Upload Modal (Only triggered from inside a folder) */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-panel w-full max-w-md rounded-2xl border border-line shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -805,12 +807,12 @@ export default function LibraryPage() {
             </div>
             <div className="p-6 flex flex-col gap-5">
               <label className="border-2 border-dashed border-line hover:border-primary/50 transition-colors rounded-xl p-6 flex flex-col items-center justify-center text-center bg-panel-2/30 cursor-pointer relative overflow-hidden group">
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   multiple
-                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" 
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
-                  onChange={handleFileChange} 
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                  onChange={handleFileChange}
                 />
                 <div className="w-12 h-12 bg-panel rounded-full flex items-center justify-center text-primary border border-line mb-3 group-hover:scale-110 transition-transform">
                   <ImageIcon size={20} />
@@ -830,22 +832,22 @@ export default function LibraryPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-bold text-text uppercase tracking-wider">Asset Title</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="e.g. Logo Pack 2026"
                   className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-text"
                   value={uploadData.title}
-                  onChange={(e) => setUploadData({...uploadData, title: e.target.value})}
+                  onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
                 />
               </div>
 
               {showPlatformField && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-text uppercase tracking-wider">Platform</label>
-                  <select 
+                  <select
                     className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-text"
                     value={uploadData.platform}
-                    onChange={(e) => setUploadData({...uploadData, platform: e.target.value})}
+                    onChange={(e) => setUploadData({ ...uploadData, platform: e.target.value })}
                   >
                     {allPlatforms.filter((p: string) => p !== 'All').map((p: string) => (
                       <option key={p} value={p}>{p}</option>
@@ -876,7 +878,7 @@ export default function LibraryPage() {
               </button>
             </div>
             <div className="p-6 sm:p-8 flex flex-col gap-6">
-              
+
               {/* Folder Name */}
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-extrabold text-muted uppercase tracking-widest">Folder Name</label>
@@ -884,12 +886,12 @@ export default function LibraryPage() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Folder size={16} className="text-muted" />
                   </div>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="e.g. Summer Campaign Assets"
                     className="w-full bg-panel border-2 border-line rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all text-text font-semibold"
                     value={folderData.name}
-                    onChange={(e) => setFolderData({...folderData, name: e.target.value})}
+                    onChange={(e) => setFolderData({ ...folderData, name: e.target.value })}
                   />
                 </div>
               </div>
@@ -905,7 +907,7 @@ export default function LibraryPage() {
 
                 {/* Role Dropdown */}
                 <div className="flex flex-col gap-1.5">
-                  <select 
+                  <select
                     className="w-full bg-panel border-2 border-line rounded-xl px-4 py-3 text-sm outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all text-text font-semibold cursor-pointer"
                     value={folderAssigneeRole}
                     onChange={(e) => setFolderAssigneeRole(e.target.value)}
@@ -944,11 +946,10 @@ export default function LibraryPage() {
                                 return { ...prev, platforms: updated };
                               });
                             }}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
-                              isSelected
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${isSelected
                                 ? 'bg-primary/15 border-primary text-primary shadow-sm scale-[1.02]'
                                 : 'bg-panel border-line text-muted hover:border-muted/50'
-                            }`}
+                              }`}
                           >
                             {platform}
                           </button>
@@ -963,15 +964,14 @@ export default function LibraryPage() {
                   {users.filter((u: any) => u.role === folderAssigneeRole).map((u: any) => {
                     const isSelected = folderData.assignedTo.includes(u.id);
                     return (
-                      <label 
-                        key={u.id} 
-                        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${
-                          isSelected ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-panel border-transparent hover:border-line hover:shadow-sm'
-                        }`}
+                      <label
+                        key={u.id}
+                        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${isSelected ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-panel border-transparent hover:border-line hover:shadow-sm'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             className="hidden"
                             checked={isSelected}
                             onChange={() => toggleFolderAssignee(u.id)}
@@ -984,15 +984,14 @@ export default function LibraryPage() {
                             <span className="text-[10px] text-muted font-bold uppercase tracking-wider mt-0.5">{u.role}</span>
                           </div>
                         </div>
-                        <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
-                          isSelected ? 'bg-primary text-white scale-110 shadow-sm' : 'border-2 border-line bg-panel-2 text-transparent scale-100'
-                        }`}>
+                        <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${isSelected ? 'bg-primary text-white scale-110 shadow-sm' : 'border-2 border-line bg-panel-2 text-transparent scale-100'
+                          }`}>
                           <Check size={12} strokeWidth={3} />
                         </div>
                       </label>
                     );
                   })}
-                  
+
                   {users.filter((u: any) => u.role === folderAssigneeRole).length === 0 && (
                     <div className="flex flex-col items-center justify-center py-8 text-center px-4">
                       <div className="w-12 h-12 bg-panel rounded-full flex items-center justify-center mb-3 shadow-sm border border-line">
@@ -1008,23 +1007,23 @@ export default function LibraryPage() {
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mt-4 pt-6 border-t border-line">
                 {editingFolderId ? (
-                  <button 
-                    onClick={handleDeleteFolder} 
+                  <button
+                    onClick={() => setIsDeleteFolderModalOpen(true)}
                     className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-sm bg-danger/10 text-danger hover:bg-danger hover:text-white transition-all flex items-center justify-center gap-2 border border-danger/20 hover:border-danger shadow-sm"
                   >
                     <Trash2 size={16} /> Delete
                   </button>
                 ) : <div className="hidden sm:block" />}
-                
+
                 <div className="flex gap-3 w-full sm:w-auto flex-col sm:flex-row">
-                  <button 
-                    onClick={() => { setIsFolderModalOpen(false); setEditingFolderId(null); }} 
+                  <button
+                    onClick={() => { setIsFolderModalOpen(false); setEditingFolderId(null); }}
                     className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-extrabold text-sm bg-panel border-2 border-line text-text hover:bg-line/50 transition-colors shadow-sm"
                   >
                     Cancel
                   </button>
-                  <button 
-                    onClick={handleSaveFolder} 
+                  <button
+                    onClick={handleSaveFolder}
                     className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-extrabold text-sm bg-primary text-white hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/30"
                   >
                     {editingFolderId ? "Save Changes" : "Create Folder"}
@@ -1035,6 +1034,33 @@ export default function LibraryPage() {
           </div>
         </div>
       )}
+      {/* Delete Folder Modal */}
+      <Modal
+        isOpen={isDeleteFolderModalOpen}
+        onClose={() => setIsDeleteFolderModalOpen(false)}
+        title="Confirm Deletion"
+        maxWidth="max-w-sm"
+      >
+        <div className="p-6">
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-16 h-16 bg-danger/10 text-danger rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="font-extrabold text-xl text-text mb-2">Delete Project Folder?</h3>
+            <p className="text-sm text-muted m-0 leading-relaxed">
+              Are you sure you want to delete this folder? Assets will be moved to the General Library.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <button className="btn ghost w-full font-semibold" onClick={() => setIsDeleteFolderModalOpen(false)}>Cancel</button>
+            <button className="btn bg-danger text-white hover:bg-danger/90 border-transparent shadow-sm w-full font-semibold" onClick={handleDeleteFolder}>
+              Yes, Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Asset Viewer Modal */}
       {viewingAsset && (
         <div className="fixed inset-0 z-[110] flex flex-col bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
@@ -1044,7 +1070,7 @@ export default function LibraryPage() {
               <p className="text-sm text-white/50">{viewIndex + 1} of {viewingAsset.files.length} files</p>
             </div>
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => handleDownload(viewingAsset)}
                 className="btn primary px-4 py-2 text-sm font-bold flex items-center gap-2"
               >
@@ -1055,17 +1081,17 @@ export default function LibraryPage() {
               </button>
             </div>
           </div>
-          
+
           <div className="flex-1 relative flex items-center justify-center p-8 overflow-hidden">
             {viewingAsset.files.length > 1 && (
               <>
-                <button 
+                <button
                   onClick={() => setViewIndex(prev => prev > 0 ? prev - 1 : viewingAsset.files.length - 1)}
                   className="absolute left-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-20"
                 >
                   <ChevronLeft size={24} />
                 </button>
-                <button 
+                <button
                   onClick={() => setViewIndex(prev => prev < viewingAsset.files.length - 1 ? prev + 1 : 0)}
                   className="absolute right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-20"
                 >
@@ -1073,13 +1099,13 @@ export default function LibraryPage() {
                 </button>
               </>
             )}
-            
+
             <div className="max-w-5xl w-full h-full flex items-center justify-center">
               {(() => {
                 const currentFile = viewingAsset.files[viewIndex];
                 const isImage = currentFile.url?.startsWith('blob:') || currentFile.type?.startsWith('image') || currentFile.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
                 const isVideo = currentFile.type?.includes('video') || currentFile.url?.match(/\.(mp4|webm|mov)$/i);
-                
+
                 if (isImage) {
                   return <img src={currentFile.url} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />;
                 } else if (isVideo) {

@@ -59,31 +59,22 @@ function Topbar() {
   const handleBellClick = () => {
     setShowNotifications(!showNotifications);
     if (!showNotifications && unreadCount > 0) {
-        markNotificationsRead();
+      markNotificationsRead();
     }
   };
 
   const handleNotificationClick = (n: any) => {
     setShowNotifications(false);
-    
+
     // Redirect logic
     if (n.task_id || n.taskId || n.brief_id) {
-        const tid = n.task_id || n.taskId || n.brief_id;
-        // Determine path based on role and notification type
-        let path = currentUser.role === 'admin' ? '/tasks' : '/my-tasks';
-        
-        if (n.type === 'new_message' || n.type === 'mention') {
-           // If it's a mention or review message, everyone might want to go to /review? Actually /tasks and /my-tasks also show comments.
-           // Admin goes to /tasks, designers/devs go to /my-tasks.
-           path = currentUser.role === 'admin' ? '/tasks' : '/my-tasks';
-        }
-        
-        router.push(`${path}?taskId=${tid}`);
+      const tid = n.task_id || n.taskId || n.brief_id;
+      router.push(`/tasks/${tid}`);
     }
   };
 
   return (
-    <header className="topbar flex items-center justify-between h-[68px] px-6 border-b border-line bg-panel/80 backdrop-blur-md sticky top-0 z-10">
+    <header className="topbar flex items-center justify-between h-[64px] px-6 border-b border-line bg-panel/90 backdrop-blur-md shrink-0 z-30">
       <div className="page-title min-w-0">
         {/* Title rendering handled by individual pages, but we could put breadcrumbs here */}
       </div>
@@ -99,50 +90,50 @@ function Topbar() {
 
           {showNotifications && (
             <div className="absolute right-0 top-full mt-2 w-[320px] max-h-[400px] overflow-auto bg-panel border border-strong-line rounded-custom shadow-custom z-50">
-                <div className="p-3 border-b border-line sticky top-0 bg-panel/90 backdrop-blur-sm flex justify-between items-center z-10">
-                    <span className="font-bold text-sm">Notifications</span>
-                    {unreadCount === 0 && <span className="text-xs text-muted font-medium">All caught up!</span>}
-                </div>
+              <div className="p-3 border-b border-line sticky top-0 bg-panel/90 backdrop-blur-sm flex justify-between items-center z-10">
+                <span className="font-bold text-sm">Notifications</span>
+                {unreadCount === 0 && <span className="text-xs text-muted font-medium">All caught up!</span>}
+              </div>
               {store.notifications && store.notifications.length > 0 ? (
                 store.notifications.map((n: any) => (
-                  <div 
-                    key={n.id} 
+                  <div
+                    key={n.id}
                     onClick={() => handleNotificationClick(n)}
                     className={`p-3.5 border-b border-line last:border-0 text-sm transition-all hover:bg-panel-2 cursor-pointer group relative overflow-hidden ${!n.is_read ? 'bg-primary/5' : ''}`}
                   >
                     {!n.is_read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>}
                     <div className="flex gap-3 items-start">
-                        {n.type === 'mention' ? (
-                            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary group-hover:text-white transition-colors shadow-sm">
-                                <span className="font-bold text-lg">@</span>
-                            </div>
-                        ) : n.type === 'task_assigned' ? (
-                            <div className="w-9 h-9 rounded-full bg-ok/10 text-ok flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-ok group-hover:text-white transition-colors shadow-sm">
-                                <FileEdit size={16} />
-                            </div>
-                        ) : (
-                            <div className="w-9 h-9 rounded-full bg-panel-2 text-text flex items-center justify-center shrink-0 border border-line mt-0.5 group-hover:bg-text group-hover:text-panel transition-colors shadow-sm">
-                                <MessageSquareCheck size={16} />
-                            </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                            <div className="text-[13.5px] leading-snug break-words text-text font-medium group-hover:text-primary transition-colors">
-                                {n.message}
-                            </div>
-                            <div className="text-[11px] font-semibold text-muted mt-1.5 uppercase tracking-wide flex items-center gap-1.5">
-                                <Clock size={10} />
-                                {new Date(n.created_at || n.createdAt).toLocaleString(undefined, {
-                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                                })}
-                            </div>
+                      {n.type === 'mention' ? (
+                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary group-hover:text-white transition-colors shadow-sm">
+                          <span className="font-bold text-lg">@</span>
                         </div>
+                      ) : n.type === 'task_assigned' ? (
+                        <div className="w-9 h-9 rounded-full bg-ok/10 text-ok flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-ok group-hover:text-white transition-colors shadow-sm">
+                          <FileEdit size={16} />
+                        </div>
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-panel-2 text-text flex items-center justify-center shrink-0 border border-line mt-0.5 group-hover:bg-text group-hover:text-panel transition-colors shadow-sm">
+                          <MessageSquareCheck size={16} />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13.5px] leading-snug break-words text-text font-medium group-hover:text-primary transition-colors">
+                          {n.message}
+                        </div>
+                        <div className="text-[11px] font-semibold text-muted mt-1.5 uppercase tracking-wide flex items-center gap-1.5">
+                          <Clock size={10} />
+                          {new Date(n.created_at || n.createdAt).toLocaleString(undefined, {
+                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center text-muted p-6 text-sm flex flex-col items-center justify-center gap-2">
-                    <Bell size={24} className="opacity-20" />
-                    No notifications yet.
+                  <Bell size={24} className="opacity-20" />
+                  No notifications yet.
                 </div>
               )}
             </div>
@@ -188,12 +179,12 @@ function Sidebar() {
   const navItems = navByRole[currentUser.role] || [];
 
   return (
-    <aside className="sidebar bg-panel border-r border-line p-5 sticky top-0 h-screen overflow-auto">
+    <aside className="sidebar bg-panel border-r border-line p-5 h-full overflow-y-auto shrink-0" style={{ width: '260px' }}>
       <div className="brand flex items-center gap-2.5 pb-8 pt-2 px-2 font-extrabold">
         <div className="brand-mark w-[34px] h-[34px] rounded-lg grid place-items-center text-white bg-gradient-to-br from-primary to-[#14a879] font-black shadow-sm">
           S
         </div>
-        <span className="text-lg tracking-tight">Scheduler</span>
+        <span className="text-lg tracking-tight">VTM</span>
       </div>
 
       <nav className="nav grid gap-1.5">
@@ -235,11 +226,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app min-h-screen grid grid-cols-[260px_minmax(0,1fr)] bg-bg text-text">
+    <div className="app h-screen flex overflow-hidden bg-bg text-text">
       <Sidebar />
-      <main className="main flex flex-col min-w-0">
+      <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Topbar />
-        <section className="content p-6">
+        <section className="content flex-1 overflow-y-auto px-4 py-4">
           {children}
         </section>
       </main>

@@ -2,9 +2,9 @@
 
 import { useScheduler } from "../context/SchedulerContext";
 import TaskCard from "../components/TaskCard";
-import { 
-  CheckCircle2, Clock, AlertCircle, ListTodo, 
-  ArrowRight, Users, LayoutDashboard, Calendar, Sparkles 
+import {
+  CheckCircle2, Clock, AlertCircle, ListTodo,
+  ArrowRight, Users, LayoutDashboard, Calendar, Sparkles
 } from "lucide-react";
 import Link from "next/link";
 
@@ -21,7 +21,7 @@ export default function DashboardPage() {
   const myTasks = tasks.filter((t: any) => t.assignedTo === currentUser.id);
   const myActiveTasks = myTasks.filter((t: any) => t.status !== "approved" && t.status !== "completed");
   const myUrgentTasks = myActiveTasks.filter((t: any) => t.priority === "Urgent" || t.priority === "high");
-  
+
   // Team Workload (for admins)
   const isAdmin = currentUser.role === "admin";
   const workload = users.map((u: any) => ({
@@ -39,8 +39,8 @@ export default function DashboardPage() {
   const progressPercentage = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
 
   return (
-    <div className="max-w-7xl mx-auto h-full flex flex-col gap-8 pb-10">
-      
+    <div className="w-full mx-auto h-full flex flex-col gap-8 px-6 pb-10">
+
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-primary/10 via-panel to-panel border border-primary/20 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm">
         <div>
@@ -52,12 +52,12 @@ export default function DashboardPage() {
             {getGreeting()}, {currentUser.name.split(" ")[0]}!
           </h1>
           <p className="text-muted text-base max-w-2xl">
-            {isAdmin 
-              ? `You have ${reviewTasks.length} tasks waiting for review across the team.` 
+            {isAdmin
+              ? `You have ${reviewTasks.length} tasks waiting for review across the team.`
               : `You have ${myActiveTasks.length} active tasks assigned to you right now.`}
           </p>
         </div>
-        
+
         {/* Quick Progress Ring */}
         <div className="flex items-center gap-4 bg-panel p-4 rounded-xl border border-line shadow-sm shrink-0">
           <div className="relative w-16 h-16 flex items-center justify-center">
@@ -86,7 +86,7 @@ export default function DashboardPage() {
           <div className="text-3xl font-black text-text mb-1">{todoTasks.length}</div>
           <div className="text-xs text-muted font-medium">Not started yet</div>
         </div>
-        
+
         <div className="bg-panel border border-line rounded-xl p-5 hover:border-strong-line transition-colors">
           <div className="flex justify-between items-start mb-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -97,7 +97,7 @@ export default function DashboardPage() {
           <div className="text-3xl font-black text-text mb-1">{inProgressTasks.length}</div>
           <div className="text-xs text-muted font-medium">Currently in progress</div>
         </div>
-        
+
         <div className="bg-panel border border-line rounded-xl p-5 hover:border-strong-line transition-colors">
           <div className="flex justify-between items-start mb-4">
             <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center text-warning">
@@ -108,7 +108,7 @@ export default function DashboardPage() {
           <div className="text-3xl font-black text-text mb-1">{reviewTasks.length}</div>
           <div className="text-xs text-muted font-medium">Pending approval</div>
         </div>
-        
+
         <div className="bg-panel border border-line rounded-xl p-5 hover:border-strong-line transition-colors">
           <div className="flex justify-between items-start mb-4">
             <div className="w-10 h-10 rounded-lg bg-ok/10 flex items-center justify-center text-ok">
@@ -122,10 +122,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Left Column: Tasks Feed */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-          
+
           {/* Urgent / Priority Focus */}
           {myUrgentTasks.length > 0 && (
             <div className="bg-danger/5 border border-danger/20 rounded-xl p-6">
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                 View Board <ArrowRight size={14} />
               </Link>
             </div>
-            
+
             {isAdmin ? (
               <div className="flex flex-col gap-3">
                 {tasks.slice(0, 4).map((task: any) => {
@@ -190,7 +190,7 @@ export default function DashboardPage() {
 
         {/* Right Column: Widgets */}
         <div className="flex flex-col gap-6">
-          
+
           {/* Admin Team Workload */}
           {isAdmin && (
             <div className="bg-panel border border-line rounded-xl p-6">
@@ -198,7 +198,7 @@ export default function DashboardPage() {
                 <Users size={20} className="text-muted" />
                 <h2 className="text-lg font-bold m-0 tracking-tight text-text">Team Workload</h2>
               </div>
-              
+
               {workload.length > 0 ? (
                 <div className="flex flex-col gap-4">
                   {workload.map((w, idx) => (
@@ -237,7 +237,7 @@ export default function DashboardPage() {
                 </div>
                 <Link href="/review" className="text-xs font-bold text-primary hover:underline">View All</Link>
               </div>
-              
+
               <div className="flex flex-col gap-4">
                 {reviewTasks.length > 0 ? (
                   reviewTasks.slice(0, 4).map((task: any) => {
@@ -279,7 +279,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-bold m-0 tracking-tight text-text">Up Next</h2>
               </div>
             </div>
-            
+
             <div className="relative border-l-2 border-line/50 ml-3 pl-5 py-2 flex flex-col gap-6">
               {myActiveTasks.filter((t: any) => t.dueDate).slice(0, 3).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map((task: any) => (
                 <div key={task.id} className="relative">

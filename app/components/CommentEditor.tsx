@@ -28,7 +28,7 @@ export default function CommentEditor({ onSubmit, currentUser }: CommentEditorPr
       }),
       Underline,
       Link.configure({ openOnClick: false }),
-      Image,
+      Image.configure({ allowBase64: true }),
       Placeholder.configure({ placeholder: 'Add a comment' })
     ],
     content: '',

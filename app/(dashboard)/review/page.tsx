@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useScheduler } from "../../context/SchedulerContext";
 import {
@@ -22,12 +22,74 @@ export default function ReviewPage() {
   const readyCount = reviewTasks.filter((t: any) => t.status === "uploaded").length;
   const revisionCount = reviewTasks.filter((t: any) => t.status === "revision").length;
 
+  useEffect(() => {
+    const fetchAllReviewSubmissions = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+      for (const task of reviewTasks) {
+        if (!String(task.id).startsWith('b')) {
+          try {
+            const res = await fetch(`${apiUrl}/tasks/${task.id}/submissions`, {
+              headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.data) {
+                const formattedSubs = data.data.map((sub: any) => ({
+                  id: sub.id,
+                  briefId: String(sub.task_id),
+                  files: typeof sub.files === 'string' ? JSON.parse(sub.files) : (sub.files || []),
+                  designerNote: sub.designer_note,
+                  docContent: sub.doc_content,
+                  liveLink: sub.live_link,
+                  uploadedAt: sub.created_at,
+                  status: sub.status,
+                  submittedBy: sub.submitted_by,
+                  submittedByName: sub.submitted_by_name,
+                  submitterRole: sub.submitter_role
+                }));
+
+                updateStore((prev: any) => {
+                  const otherUploads = (prev.uploads || []).filter((u: any) => String(u.briefId) !== String(task.id));
+                  return { ...prev, uploads: [...formattedSubs, ...otherUploads] };
+                });
+              }
+            }
+          } catch (e) { }
+        }
+      }
+    };
+
+    if (reviewTasks.length > 0) {
+      fetchAllReviewSubmissions();
+    }
+  }, [reviewTasks.length]);
+
   const handleStatusUpdate = async (taskId: string, newStatus: string) => {
     setLoadingId(taskId);
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+      const taskUploads = (store.uploads || []).filter((u: any) => String(u.briefId) === String(taskId) && u.status === 'pending');
+      const latestUpload = taskUploads.length > 0 ? taskUploads[0] : null;
+
+      if (latestUpload && !String(latestUpload.id).startsWith('up_')) {
+        await fetch(`${apiUrl}/tasks/submissions/${latestUpload.id}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ status: newStatus === 'approved' ? 'approved' : newStatus === 'revision' ? 'revision' : 'pending' })
+        });
+
+        updateStore((prev: any) => ({
+          ...prev,
+          uploads: (prev.uploads || []).map((u: any) => u.id === latestUpload.id ? { ...u, status: newStatus === 'approved' ? 'approved' : newStatus === 'revision' ? 'revision' : 'pending' } : u)
+        }));
+      }
+
       const res = await fetch(`${apiUrl}/tasks/${taskId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -83,7 +145,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-8 pb-10">
+    <div className="w-full mx-auto flex flex-col gap-8 px-6 pb-10">
 
       {/* ── Header ── */}
       <div className="relative bg-panel border border-line rounded-3xl p-7 overflow-hidden shadow-sm">
@@ -134,26 +196,30 @@ export default function ReviewPage() {
               : task.assignedTo ? [task.assignedTo] : [];
             const assignees = assignedIds.map((tid: string) => users.find((u: any) => u.id === tid)).filter(Boolean);
             const isRevision = task.status === "revision";
-            const taskUploads = (store.uploads || []).filter((u: any) => u.briefId === task.id);
+            const taskUploads = (store.uploads || []).filter((u: any) => String(u.briefId) === String(task.id));
+            const latestUpload = [...taskUploads].sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
+            const submitterName = latestUpload?.submittedByName || assignees[0]?.name || "Unassigned";
+            const submitterRole = latestUpload?.submitterRole || assignees[0]?.role || "Team Member";
+            const submitterInitial = submitterName.charAt(0).toUpperCase();
+
             const totalAssets = taskUploads.reduce((acc: number, u: any) => acc + (u.files?.length || 0), 0);
             const overdue = isOverdue(task.dueDate);
 
             const priorityConfig: Record<string, { cls: string; dot: string }> = {
-              Urgent:  { cls: "bg-danger/10 text-danger border border-danger/20",  dot: "bg-danger" },
-              High:    { cls: "bg-warning/10 text-warning border border-warning/20", dot: "bg-warning" },
-              Medium:  { cls: "bg-primary/10 text-primary border border-primary/20", dot: "bg-primary" },
-              Low:     { cls: "bg-ok/10 text-ok border border-ok/20",              dot: "bg-ok" },
+              Urgent: { cls: "bg-danger/10 text-danger border border-danger/20", dot: "bg-danger" },
+              High: { cls: "bg-warning/10 text-warning border border-warning/20", dot: "bg-warning" },
+              Medium: { cls: "bg-primary/10 text-primary border border-primary/20", dot: "bg-primary" },
+              Low: { cls: "bg-ok/10 text-ok border border-ok/20", dot: "bg-ok" },
             };
             const pConf = priorityConfig[task.priority] || { cls: "bg-panel-2 text-muted border border-line", dot: "bg-muted" };
 
             return (
               <div
                 key={task.id}
-                className={`group relative bg-panel border rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 ${
-                  isRevision
+                className={`group relative bg-panel border rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 ${isRevision
                     ? "border-warning/30 shadow-warning/5 shadow-md"
                     : "border-line hover:border-primary/30"
-                }`}
+                  }`}
               >
                 {/* Left accent bar */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-3xl ${isRevision ? "bg-warning" : "bg-primary"}`} />
@@ -162,19 +228,18 @@ export default function ReviewPage() {
 
                   {/* ── Submitter ── */}
                   <div className="flex items-center gap-3.5 min-w-[180px] shrink-0">
-                    <div className={`relative w-12 h-12 rounded-2xl text-white font-black flex items-center justify-center text-base shadow-md shrink-0 ${
-                      isRevision
+                    <div className={`relative w-12 h-12 rounded-2xl text-white font-black flex items-center justify-center text-base shadow-md shrink-0 ${isRevision
                         ? "bg-gradient-to-br from-warning to-orange-500"
                         : "bg-gradient-to-br from-primary to-emerald-500"
-                    }`}>
-                      {assignees[0]?.name?.charAt(0)?.toUpperCase() || "U"}
+                      }`}>
+                      {submitterInitial}
                       {/* Online dot */}
                       <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-ok border-2 border-panel rounded-full" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-0.5">Submitted By</p>
-                      <p className="text-sm font-extrabold text-text leading-tight truncate">{assignees[0]?.name || "Unassigned"}</p>
-                      <p className="text-[11px] font-semibold text-muted capitalize mt-0.5">{assignees[0]?.role || "Team Member"}</p>
+                      <p className="text-sm font-extrabold text-text leading-tight truncate">{submitterName}</p>
+                      <p className="text-[11px] font-semibold text-muted capitalize mt-0.5">{submitterRole}</p>
                     </div>
                   </div>
 
@@ -186,17 +251,15 @@ export default function ReviewPage() {
 
                     {/* Status + Due */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-lg ${
-                        isRevision
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-lg ${isRevision
                           ? "bg-warning text-white"
                           : "bg-primary/10 text-primary border border-primary/20"
-                      }`}>
+                        }`}>
                         {isRevision ? <RefreshCcw size={10} /> : <Layers size={10} />}
                         {isRevision ? "In Revision" : "Ready for Review"}
                       </span>
-                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold rounded-lg px-2.5 py-1 ${
-                        overdue ? "bg-danger/10 text-danger border border-danger/20" : "text-muted"
-                      }`}>
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold rounded-lg px-2.5 py-1 ${overdue ? "bg-danger/10 text-danger border border-danger/20" : "text-muted"
+                        }`}>
                         {overdue && <AlertTriangle size={11} />}
                         <Clock size={11} />
                         {formatDate(task.dueDate)}
@@ -275,27 +338,11 @@ export default function ReviewPage() {
                   <div className="flex flex-row lg:flex-col items-center gap-2.5 shrink-0 justify-end lg:justify-center w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0">
                     <button
                       onClick={() => router.push(`/tasks/${task.id}`)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold border border-primary/20 hover:border-primary/40 transition-all w-full justify-center group/btn"
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white text-sm font-extrabold shadow-sm hover:opacity-90 transition-all w-full justify-center group/btn"
                     >
-                      <Eye size={14} />
+                      <Eye size={16} />
                       Review Task
-                      <ArrowRight size={13} className="opacity-0 group-hover/btn:opacity-100 -ml-1 transition-all" />
-                    </button>
-                    <button
-                      onClick={() => handleStatusUpdate(task.id, "revision")}
-                      disabled={loadingId === task.id || isRevision}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-warning/10 hover:bg-warning/20 text-warning text-xs font-extrabold border border-warning/20 hover:border-warning/40 transition-all w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <RotateCcw size={14} />
-                      Request Revision
-                    </button>
-                    <button
-                      onClick={() => handleStatusUpdate(task.id, "approved")}
-                      disabled={loadingId === task.id}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ok hover:bg-ok/90 text-white text-xs font-extrabold shadow-sm shadow-ok/30 active:scale-95 transition-all w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Check size={14} strokeWidth={3} />
-                      {loadingId === task.id ? "Saving…" : "Approve"}
+                      <ArrowRight size={16} className="opacity-0 group-hover/btn:opacity-100 -ml-2 transition-all" />
                     </button>
                   </div>
                 </div>

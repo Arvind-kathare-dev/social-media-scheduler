@@ -88,13 +88,13 @@ export default function TasksPage() {
 
     const openEditModal = (task: any) => {
         // Find assigned user's role if assignedTo exists
-        const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0 
-            ? task.assignedToMulti.map(String) 
+        const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0
+            ? task.assignedToMulti.map(String)
             : [];
-        const assignedIds = multiAssignees.length > 0 
-            ? multiAssignees 
+        const assignedIds = multiAssignees.length > 0
+            ? multiAssignees
             : (task.assignedTo ? [String(task.assignedTo)] : []);
-        
+
         const assignedUserRole = assignedIds.length > 0 ? users.find((u: any) => u.id === assignedIds[0])?.role || "designer" : "designer";
 
         setFormData({
@@ -195,18 +195,18 @@ export default function TasksPage() {
     };
 
     const filteredAssignees = useMemo(() => {
-        return users.filter((u: any) => 
-            u.role === assigneeRole && 
+        return users.filter((u: any) =>
+            u.role === assigneeRole &&
             u.name.toLowerCase().includes(assigneeSearch.toLowerCase())
         );
     }, [users, assigneeRole, assigneeSearch]);
 
     const handleSelectAllAssignees = () => {
         if (filteredAssignees.length === 0) return;
-        
+
         const filteredIds = filteredAssignees.map((u: any) => u.id);
         const allFilteredSelected = filteredIds.every((id: string) => formData.assignedTo.includes(id));
-        
+
         if (allFilteredSelected) {
             setFormData(prev => ({
                 ...prev,
@@ -219,7 +219,7 @@ export default function TasksPage() {
             });
         }
     };
-    
+
     const allFilteredSelected = filteredAssignees.length > 0 && filteredAssignees.every((u: any) => formData.assignedTo.includes(u.id));
 
     const handleSubmit = async (e: any) => {
@@ -334,6 +334,7 @@ export default function TasksPage() {
         switch (status) {
             case "todo": return "bg-panel-2 text-muted border-line";
             case "in_progress": return "bg-primary/10 text-primary border-primary/20";
+            case "qa": return "bg-[#0ea5e9]/10 text-[#0ea5e9] border-[#0ea5e9]/30";
             case "revision": return "bg-warning/10 text-warning border-warning/30";
             case "uploaded": return "bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]/30";
             case "approved":
@@ -358,7 +359,7 @@ export default function TasksPage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto h-full flex flex-col gap-6 pb-10">
+        <div className="w-full mx-auto h-full flex flex-col gap-6 px-6 pb-10">
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -401,11 +402,11 @@ export default function TasksPage() {
                             ) : (
                                 paginatedBriefs.map((task: any) => {
                                     // Parse assigned users
-                                    const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0 
-                                        ? task.assignedToMulti.map(String) 
+                                    const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0
+                                        ? task.assignedToMulti.map(String)
                                         : [];
-                                    const assignedIds = multiAssignees.length > 0 
-                                        ? multiAssignees 
+                                    const assignedIds = multiAssignees.length > 0
+                                        ? multiAssignees
                                         : (task.assignedTo ? [String(task.assignedTo)] : []);
                                     const assignees = assignedIds.map((id: string) => users.find((u: any) => u.id === id)).filter(Boolean);
 
@@ -551,8 +552,8 @@ export default function TasksPage() {
                                     <div className="flex items-center justify-between mb-2">
                                         <label className="text-text text-[13px] font-semibold">Assign To (Multi-Select)</label>
                                         {filteredAssignees.length > 0 && (
-                                            <button 
-                                                type="button" 
+                                            <button
+                                                type="button"
                                                 onClick={handleSelectAllAssignees}
                                                 className="text-[12px] font-semibold text-primary hover:text-primary/80 transition-colors"
                                             >
@@ -563,8 +564,8 @@ export default function TasksPage() {
                                     <div className="border border-line rounded-md bg-transparent flex-1 flex flex-col min-h-[200px] max-h-[260px]">
                                         <div className="flex items-center gap-2 px-3 py-2 border-b border-line bg-panel-2/30">
                                             <Search size={14} className="text-muted shrink-0" />
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 value={assigneeSearch}
                                                 onChange={(e) => setAssigneeSearch(e.target.value)}
                                                 placeholder={`Search ${assigneeRole}s...`}
@@ -585,29 +586,25 @@ export default function TasksPage() {
                                                 filteredAssignees.map((u: any) => {
                                                     const isSelected = formData.assignedTo.includes(u.id);
                                                     return (
-                                                        <div 
-                                                            key={u.id} 
+                                                        <div
+                                                            key={u.id}
                                                             onClick={() => toggleAssignee(u.id)}
-                                                            className={`flex items-center gap-3 px-3 py-2.5 mx-2 my-1 rounded-lg cursor-pointer transition-all border ${
-                                                                isSelected 
-                                                                ? 'bg-primary/5 border-primary/20 shadow-[0_1px_2px_rgba(0,0,0,0.02)]' 
+                                                            className={`flex items-center gap-3 px-3 py-2.5 mx-2 my-1 rounded-lg cursor-pointer transition-all border ${isSelected
+                                                                ? 'bg-primary/5 border-primary/20 shadow-[0_1px_2px_rgba(0,0,0,0.02)]'
                                                                 : 'border-transparent hover:bg-panel-2 hover:border-line/50'
-                                                            }`}
+                                                                }`}
                                                         >
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors ${
-                                                                isSelected ? 'bg-primary text-white shadow-sm' : 'bg-panel-2 text-muted border border-line'
-                                                            }`}>
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors ${isSelected ? 'bg-primary text-white shadow-sm' : 'bg-panel-2 text-muted border border-line'
+                                                                }`}>
                                                                 {u.avatar || u.name.substring(0, 2).toUpperCase()}
                                                             </div>
                                                             <div className="flex flex-col flex-1 min-w-0">
-                                                                <span className={`text-[13px] font-medium truncate leading-tight ${
-                                                                    isSelected ? 'text-primary' : 'text-text'
-                                                                }`}>{u.name}</span>
+                                                                <span className={`text-[13px] font-medium truncate leading-tight ${isSelected ? 'text-primary' : 'text-text'
+                                                                    }`}>{u.name}</span>
                                                                 <span className="text-[11px] text-muted capitalize truncate mt-0.5">{u.role}</span>
                                                             </div>
-                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                                                                isSelected ? 'bg-primary text-white shadow-sm scale-100' : 'border border-strong-line bg-transparent scale-90 opacity-40'
-                                                            }`}>
+                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-primary text-white shadow-sm scale-100' : 'border border-strong-line bg-transparent scale-90 opacity-40'
+                                                                }`}>
                                                                 {isSelected && <Check size={12} strokeWidth={3} />}
                                                             </div>
                                                         </div>
@@ -631,7 +628,7 @@ export default function TasksPage() {
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                                        <label className="text-text text-[13px] font-semibold">Is this a Social Media Post?</label>
+                                        <label className="text-text text-[13px] font-semibold">Is this a UI/UX Task?</label>
                                         <div className="inline-flex p-1 bg-panel-2 rounded-lg border border-line">
                                             <label className={`cursor-pointer px-4 py-1.5 rounded-md text-[13px] font-medium transition-all ${isPost ? 'bg-panel text-text shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-text'}`}>
                                                 <input type="radio" name="isPost" checked={isPost === true} onChange={() => setIsPost(true)} className="hidden" />

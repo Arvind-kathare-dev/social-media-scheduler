@@ -2,9 +2,9 @@
 import { useState } from "react";
 import { useScheduler } from "../../context/SchedulerContext";
 import toast from "react-hot-toast";
-import { 
-  Moon, Sun, Bell, Shield, User, Briefcase, 
-  Settings as SettingsIcon, Link2, CheckCircle2, 
+import {
+  Moon, Sun, Bell, Shield, User, Briefcase,
+  Settings as SettingsIcon, Link2, CheckCircle2,
   Smartphone, Mail, Lock
 } from "lucide-react";
 
@@ -21,9 +21,9 @@ export default function SettingsPage() {
   const handleSaveProfile = () => {
     updateStore((prev: any) => ({
       ...prev,
-      users: (prev.users || []).map((u: any) => 
-        u.id === currentUser.id 
-          ? { ...u, name: profileName, bio: profileBio, avatar: String(profileName).charAt(0).toUpperCase() } 
+      users: (prev.users || []).map((u: any) =>
+        u.id === currentUser.id
+          ? { ...u, name: profileName, bio: profileBio, avatar: String(profileName).charAt(0).toUpperCase() }
           : u
       )
     }));
@@ -72,7 +72,7 @@ export default function SettingsPage() {
 
   // --- State for Workspace ---
   const [workspaceName, setWorkspaceName] = useState("Veloc Social Scheduler");
-  
+
   const handleSaveWorkspace = () => {
     toast.success("Workspace configuration saved!");
   };
@@ -89,7 +89,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto h-full flex flex-col pb-10">
+    <div className="w-full mx-auto h-full flex flex-col px-6 pb-10">
       <div className="flex items-center gap-2 mb-8">
         <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
           <SettingsIcon size={20} />
@@ -107,11 +107,10 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === tab.id 
-                  ? 'bg-primary/10 text-primary' 
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${activeTab === tab.id
+                  ? 'bg-primary/10 text-primary'
                   : 'text-muted hover:text-text hover:bg-panel-2'
-              }`}
+                }`}
             >
               {tab.icon}
               {tab.label}
@@ -121,7 +120,7 @@ export default function SettingsPage() {
 
         {/* Right Content Area */}
         <div className="flex-1 w-full bg-panel border border-line rounded-xl shadow-sm overflow-hidden min-h-[500px]">
-          
+
           {/* PROFILE SETTINGS */}
           {activeTab === "profile" && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -143,30 +142,30 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                   <div className="input-group">
                     <label className="block text-sm font-bold text-text mb-2">Full Name</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={profileName}
                       onChange={(e) => setProfileName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-strong-line bg-panel text-text text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
+                      className="w-full px-4 py-2.5 rounded-lg border border-strong-line bg-panel text-text text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                     />
                   </div>
                   <div className="input-group">
                     <label className="block text-sm font-bold text-text mb-2">Email Address</label>
-                    <input 
-                      type="email" 
-                      defaultValue={currentUser.email} 
-                      disabled 
-                      className="w-full px-4 py-2.5 rounded-lg border border-line bg-panel-2 text-muted text-sm outline-none cursor-not-allowed" 
+                    <input
+                      type="email"
+                      defaultValue={currentUser.email}
+                      disabled
+                      className="w-full px-4 py-2.5 rounded-lg border border-line bg-panel-2 text-muted text-sm outline-none cursor-not-allowed"
                     />
                   </div>
                   <div className="input-group md:col-span-2">
                     <label className="block text-sm font-bold text-text mb-2">Bio / Tagline</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={profileBio}
                       onChange={(e) => setProfileBio(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-strong-line bg-panel text-text text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
-                      placeholder="E.g. Lead Designer" 
+                      className="w-full px-4 py-2.5 rounded-lg border border-strong-line bg-panel text-text text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                      placeholder="E.g. Lead Designer"
                     />
                   </div>
                 </div>
@@ -186,7 +185,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted mt-1">Customize how the application looks on your device.</p>
               </div>
               <div className="p-6">
-                <div 
+                <div
                   onClick={toggleDark}
                   className="flex items-center justify-between p-5 bg-panel-2 hover:bg-line/20 rounded-xl border border-line cursor-pointer transition-colors"
                 >
@@ -199,7 +198,7 @@ export default function SettingsPage() {
                       <div className="text-sm text-muted">Switch between light and dark mode styling.</div>
                     </div>
                   </div>
-                  <button 
+                  <button
                     className={`w-12 h-6 rounded-full relative transition-colors shadow-inner ${dark ? 'bg-primary' : 'bg-strong-line'}`}
                   >
                     <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform shadow-sm ${dark ? 'translate-x-7' : 'translate-x-1'}`}></div>
@@ -222,8 +221,8 @@ export default function SettingsPage() {
                   { id: "push", icon: <Bell size={18} />, title: "Push Notifications", desc: "Get real-time alerts in your browser when tasks are assigned." },
                   { id: "sms", icon: <Smartphone size={18} />, title: "SMS Alerts", desc: "Get text messages for critical timeline breaches." }
                 ].map((item: any) => (
-                  <div 
-                    key={item.id} 
+                  <div
+                    key={item.id}
                     onClick={() => toggleNotif(item.id)}
                     className="flex items-center justify-between p-4 border border-line rounded-lg hover:border-primary/50 bg-panel transition-all cursor-pointer group"
                   >
@@ -269,9 +268,9 @@ export default function SettingsPage() {
                   </div>
                   <button onClick={() => toast.success("Password successfully updated.")} className="btn primary px-5 py-2 text-sm mt-5 shadow-sm">Update Password</button>
                 </div>
-                
+
                 <hr className="border-line" />
-                
+
                 <div className="flex items-center justify-between p-4 border border-line rounded-xl bg-panel-2/30">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
@@ -299,11 +298,11 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="input-group md:col-span-2">
                     <label className="block text-sm font-bold text-text mb-2">Company / Workspace Name</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={workspaceName}
                       onChange={(e) => setWorkspaceName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-strong-line bg-panel text-text text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
+                      className="w-full px-4 py-2.5 rounded-lg border border-strong-line bg-panel text-text text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                     />
                   </div>
                   <div className="input-group">
@@ -364,7 +363,7 @@ export default function SettingsPage() {
                           </div>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => toggleIntegration(platform.id as keyof typeof integrations, platform.name)}
                         className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${isConnected ? 'border-line text-muted hover:text-danger hover:border-danger/30' : 'border-primary/20 bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
                       >
