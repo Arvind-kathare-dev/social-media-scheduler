@@ -242,10 +242,8 @@ export default function TasksPage() {
             const finalPlatforms = (assigneeRole === "designer" && isPost) ? platforms : [];
             const finalHashtags = (assigneeRole === "designer" && isPost) ? hashtags : [];
 
-            // Backend currently takes a single assignee, so we'll pass the first one, or stringify if modified backend
-            const parsedAssignee = formData.assignedTo.length > 0 ? parseInt(formData.assignedTo[0]) : null;
-            const assigned_to_value = isNaN(parsedAssignee!) ? null : parsedAssignee;
-
+            // Pass the string UUID directly
+            const assigned_to_value = formData.assignedTo.length > 0 ? formData.assignedTo[0] : null;
             const payload = {
                 title: formData.title,
                 description: formData.copy,

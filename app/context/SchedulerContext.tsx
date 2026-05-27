@@ -211,18 +211,9 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
   }, [socket, currentUserId]);
 
   useEffect(() => {
-    // Load store from localStorage on mount ONLY ONCE
+    // Initialize with empty arrays to let the API populate the data
     if (refreshCounter === 0) {
-      const saved = localStorage.getItem("scheduler-store");
-      if (saved) {
-        try {
-          setStore(JSON.parse(saved));
-        } catch {
-          setStore(seedStore());
-        }
-      } else {
-        setStore(seedStore());
-      }
+      setStore({ briefs: [], uploads: [], comments: [], events: [], notifications: [], users: initialUsers, folders: [] });
     }
 
     // Try to load real auth user if available
@@ -413,16 +404,7 @@ export function SchedulerProvider({ children }: { children: ReactNode }) {
     };
   }, [socket]);
 
-  useEffect(() => {
-    if (store) {
-      try {
-        localStorage.setItem("scheduler-store", JSON.stringify(store));
-      } catch (err) {
-        console.warn("Storage quota exceeded. Unable to save store locally.");
-        toast.error("File is too large to save locally. Please remove large images.");
-      }
-    }
-  }, [store]);
+  // LocalStorage store saving has been removed to rely exclusively on the API
 
   useEffect(() => {
     if (dark) {

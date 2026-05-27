@@ -194,7 +194,10 @@ export default function CalendarPage() {
                       
                       <div className="flex flex-col gap-1.5">
                         {events.map(ev => {
-                          const assignee = users.find((u: any) => u.id === ev.assignedTo);
+                          const multiAssignees = Array.isArray(ev.assignedToMulti) && ev.assignedToMulti.length > 0
+                            ? ev.assignedToMulti.map(String)
+                            : (ev.assignedTo ? [String(ev.assignedTo)] : []);
+                          const assignees = multiAssignees.map((id: string) => users.find((u: any) => String(u.id) === id)).filter(Boolean);
                           return (
                             <div 
                               key={ev.id} 
@@ -205,12 +208,18 @@ export default function CalendarPage() {
                                 ev.priority === 'Urgent' ? 'bg-danger' : ev.priority === 'Low' ? 'bg-ok' : 'bg-primary'
                               }`}></div>
                               <span className="truncate block leading-tight text-text group-hover:text-primary transition-colors">{ev.title}</span>
-                              {isAdmin && assignee && (
+                              {isAdmin && assignees.length > 0 && (
                                 <span className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold opacity-70 mt-0.5">
-                                  <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[7px] shadow-sm shrink-0">
-                                    {assignee.avatar || assignee.name.charAt(0)}
+                                  <div className="flex -space-x-1">
+                                    {assignees.map((a: any, idx: number) => (
+                                      <div key={idx} className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[7px] shadow-sm shrink-0 ring-1 ring-panel z-10" style={{ zIndex: 10 - idx }} title={a.name}>
+                                        {a.avatar || a.name.charAt(0)}
+                                      </div>
+                                    ))}
                                   </div>
-                                  {assignee.name.split(' ')[0]}
+                                  <span className="truncate">
+                                    {assignees.map((a: any) => a.name.split(' ')[0]).join(', ')}
+                                  </span>
                                 </span>
                               )}
                             </div>
@@ -230,7 +239,10 @@ export default function CalendarPage() {
             {agendaTasks.length > 0 ? (
               <div className="max-w-4xl mx-auto flex flex-col gap-5">
                 {agendaTasks.map(task => {
-                  const assignee = users.find((u: any) => u.id === task.assignedTo);
+                  const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0
+                    ? task.assignedToMulti.map(String)
+                    : (task.assignedTo ? [String(task.assignedTo)] : []);
+                  const assignees = multiAssignees.map((id: string) => users.find((u: any) => String(u.id) === id)).filter(Boolean);
                   const isOverdue = new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0)) && task.status !== "approved";
                   
                   // Same platformMeta used in Review/Board pages for colored chips
@@ -277,12 +289,18 @@ export default function CalendarPage() {
                               {getStatusLabel(task.status)}
                             </span>
                             
-                            {isAdmin && assignee && (
+                            {isAdmin && assignees.length > 0 && (
                               <span className="flex items-center gap-1.5 text-muted font-bold text-[11px] uppercase tracking-wider">
-                                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[8px] shadow-sm shrink-0">
-                                  {assignee.avatar || assignee.name.charAt(0)}
+                                <div className="flex -space-x-1.5">
+                                  {assignees.map((a: any, idx: number) => (
+                                    <div key={idx} className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[8px] shadow-sm shrink-0 ring-1 ring-panel z-10" style={{ zIndex: 10 - idx }} title={a.name}>
+                                      {a.avatar || a.name.charAt(0)}
+                                    </div>
+                                  ))}
                                 </div>
-                                {assignee.name}
+                                <span className="truncate">
+                                  {assignees.map((a: any) => a.name.split(' ')[0]).join(', ')}
+                                </span>
                               </span>
                             )}
                             

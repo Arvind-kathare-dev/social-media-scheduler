@@ -94,6 +94,12 @@ export default function TaskDetailPage() {
   const safePlatforms = Array.isArray(brief.platforms) ? brief.platforms : (typeof brief.platforms === 'string' ? JSON.parse(brief.platforms || "[]") : []);
   const safeHashtags = Array.isArray(brief.hashtags) ? brief.hashtags : (typeof brief.hashtags === 'string' ? JSON.parse(brief.hashtags || "[]") : []);
 
+  const visibleUploads = (store.uploads || []).filter((u: any) => {
+    if (String(u.briefId) !== String(brief.id)) return false;
+    if (isAdmin) return true; // Admins see all uploads
+    return String(u.submittedBy) === String(currentUser.id); // Developers only see their own uploads
+  });
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (selectedFiles.length > 0) {
@@ -299,24 +305,8 @@ export default function TaskDetailPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {isAdmin && brief.status === 'uploaded' && (
-            <>
-              <button onClick={() => handleStatusUpdate('approved')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-ok text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all">
-                <Check size={14} /> Approve
-              </button>
-              <button onClick={() => handleStatusUpdate('revision')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-warning text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all">
-                <RotateCcw size={14} /> Revision
-              </button>
-              <button onClick={() => handleStatusUpdate('todo')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-line text-xs font-bold text-muted hover:bg-panel-2 transition-all">
-                <Clock size={14} /> Pending
-              </button>
-            </>
-          )}
-          {isAdmin && brief.status !== 'uploaded' && brief.status !== 'approved' && (
-            <button onClick={() => handleStatusUpdate('approved')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-ok/50 text-xs font-bold text-ok hover:bg-ok/10 transition-all">
-              <Check size={14} /> Mark Complete
-            </button>
-          )}
+          {/* Topbar action buttons moved down to submission section */}
+
           {!isAdmin && (
             <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all">
               <Upload size={14} /> {brief.status === 'revision' ? 'Resubmit Work' : 'Submit Work'}
@@ -488,11 +478,11 @@ export default function TaskDetailPage() {
               )}
 
               {/* Submitted Work Section */}
-              {store.uploads?.filter((u: any) => String(u.briefId) === String(brief.id)).length > 0 && (
+              {visibleUploads.length > 0 && (
                 <div className="mt-12 pt-8 border-t border-line">
                   <h3 className="font-extrabold text-xl text-text mb-6">Submitted Work</h3>
                   <div className="flex flex-col gap-6">
-                    {store.uploads?.filter((u: any) => String(u.briefId) === String(brief.id)).map((upload: any, idx: number) => (
+                    {visibleUploads.map((upload: any, idx: number) => (
                       <div key={upload.id || idx} className={`border rounded-2xl p-6 ${upload.status === 'approved' ? 'bg-ok/5 border-ok/30' : upload.status === 'revision' ? 'bg-danger/5 border-danger/30' : 'bg-panel-2/50 border-line'}`}>
                         <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
                           <div className="flex items-center gap-3">
@@ -577,6 +567,9 @@ export default function TaskDetailPage() {
                             </button>
                             <button onClick={() => handleStatusUpdate('revision', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-warning/50 text-sm font-bold text-warning hover:bg-warning/10 transition-all">
                               <RotateCcw size={14} /> Request Revision
+                            </button>
+                            <button onClick={() => handleStatusUpdate('todo', upload.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-line text-sm font-bold text-muted hover:bg-panel-2 transition-all">
+                              <Clock size={14} /> Pending
                             </button>
                           </div>
                         )}

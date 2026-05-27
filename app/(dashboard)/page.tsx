@@ -18,7 +18,10 @@ export default function DashboardPage() {
   const reviewTasks = tasks.filter((t: any) => t.status === "uploaded");
   const completedTasks = tasks.filter((t: any) => t.status === "approved" || t.status === "completed");
 
-  const myTasks = tasks.filter((t: any) => t.assignedTo === currentUser.id);
+  const myTasks = tasks.filter((t: any) => {
+    const multi = Array.isArray(t.assignedToMulti) ? t.assignedToMulti.map(String) : [];
+    return String(t.assignedTo) === String(currentUser.id) || multi.includes(String(currentUser.id));
+  });
   const myActiveTasks = myTasks.filter((t: any) => t.status !== "approved" && t.status !== "completed");
   const myUrgentTasks = myActiveTasks.filter((t: any) => t.priority === "Urgent" || t.priority === "high");
 
@@ -26,7 +29,11 @@ export default function DashboardPage() {
   const isAdmin = currentUser.role === "admin";
   const workload = users.map((u: any) => ({
     user: u,
-    taskCount: tasks.filter((t: any) => t.assignedTo === u.id && t.status !== "approved" && t.status !== "completed").length
+    taskCount: tasks.filter((t: any) => {
+      const multi = Array.isArray(t.assignedToMulti) ? t.assignedToMulti.map(String) : [];
+      const assigned = String(t.assignedTo) === String(u.id) || multi.includes(String(u.id));
+      return assigned && t.status !== "approved" && t.status !== "completed";
+    }).length
   })).filter(w => w.taskCount > 0).sort((a, b) => b.taskCount - a.taskCount).slice(0, 5);
 
   const getGreeting = () => {
@@ -241,7 +248,11 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-4">
                 {reviewTasks.length > 0 ? (
                   reviewTasks.slice(0, 4).map((task: any) => {
-                    const assignee = users.find((u: any) => u.id === task.assignedTo);
+                    const multiAssignees = Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0
+                      ? task.assignedToMulti.map(String)
+                      : (task.assignedTo ? [String(task.assignedTo)] : []);
+                    const assignees = multiAssignees.map((id: string) => users.find((u: any) => String(u.id) === id)).filter(Boolean);
+                    
                     return (
                       <div key={task.id} className="p-3 bg-panel-2 border border-line rounded-lg flex flex-col gap-2 relative">
                         <div className="flex justify-between items-start">
@@ -250,10 +261,19 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted uppercase tracking-wider">
-                            <span className="w-4 h-4 bg-primary text-white flex items-center justify-center rounded-full">
-                              {assignee?.avatar || "U"}
+                            <div className="flex -space-x-1.5">
+                              {assignees.map((a: any, idx: number) => (
+                                <div key={idx} className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[8px] shadow-sm shrink-0 ring-1 ring-panel z-10" style={{ zIndex: 10 - idx }} title={a.name}>
+                                  {a.avatar || a.name.charAt(0)}
+                                </div>
+                              ))}
+                              {assignees.length === 0 && (
+                                <div className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[8px] shadow-sm shrink-0">U</div>
+                              )}
+                            </div>
+                            <span className="truncate">
+                              {assignees.length > 0 ? assignees.map((a: any) => a.name.split(" ")[0]).join(", ") : "Unassigned"}
                             </span>
-                            {assignee?.name.split(" ")[0]}
                           </div>
                           <Link href="/review" className="text-[10px] font-bold text-text bg-panel border border-line px-2 py-1 rounded shadow-sm hover:border-primary transition-colors">
                             Review

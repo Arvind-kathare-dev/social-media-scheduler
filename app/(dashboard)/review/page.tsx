@@ -12,6 +12,7 @@ export default function ReviewPage() {
   const { store, updateStore, currentUser, users } = useScheduler();
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [isFetchingSubmissions, setIsFetchingSubmissions] = useState(true);
 
   const isAllowed = currentUser.role === "admin";
 
@@ -24,6 +25,7 @@ export default function ReviewPage() {
 
   useEffect(() => {
     const fetchAllReviewSubmissions = async () => {
+      setIsFetchingSubmissions(true);
       const token = localStorage.getItem("token");
       if (!token) return;
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -60,10 +62,13 @@ export default function ReviewPage() {
           } catch (e) { }
         }
       }
+      setIsFetchingSubmissions(false);
     };
 
     if (reviewTasks.length > 0) {
       fetchAllReviewSubmissions();
+    } else {
+      setIsFetchingSubmissions(false);
     }
   }, [reviewTasks.length]);
 
@@ -178,7 +183,12 @@ export default function ReviewPage() {
       </div>
 
       {/* ── Task List ── */}
-      {reviewTasks.length === 0 ? (
+      {isFetchingSubmissions ? (
+        <div className="flex flex-col items-center justify-center min-h-[340px] bg-panel border-2 border-dashed border-line rounded-3xl text-center gap-4 p-10">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-muted font-medium">Loading submissions...</p>
+        </div>
+      ) : reviewTasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[340px] bg-panel border-2 border-dashed border-line rounded-3xl text-center gap-4 p-10">
           <div className="w-20 h-20 rounded-full bg-ok/10 flex items-center justify-center">
             <CheckCircle2 size={36} className="text-ok" />
@@ -188,22 +198,46 @@ export default function ReviewPage() {
             <p className="text-muted text-sm max-w-xs mx-auto">No content is waiting for review right now. Great work keeping the queue clear.</p>
           </div>
         </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {reviewTasks.map((task: any) => {
-            const assignedIds = (Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0)
-              ? task.assignedToMulti
-              : task.assignedTo ? [task.assignedTo] : [];
-            const assignees = assignedIds.map((tid: string) => users.find((u: any) => u.id === tid)).filter(Boolean);
-            const isRevision = task.status === "revision";
-            const taskUploads = (store.uploads || []).filter((u: any) => String(u.briefId) === String(task.id));
-            const latestUpload = [...taskUploads].sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
-            const submitterName = latestUpload?.submittedByName || assignees[0]?.name || "Unassigned";
-            const submitterRole = latestUpload?.submitterRole || assignees[0]?.role || "Team Member";
-            const submitterInitial = submitterName.charAt(0).toUpperCase();
+      ) : (() => {
+        const reviewItems: any[] = [];
+        reviewTasks.forEach((task: any) => {
+          const taskUploads = (store.uploads || []).filter((u: any) => String(u.briefId) === String(task.id));
+          if (taskUploads.length === 0) {
+            reviewItems.push({ task, submitterId: null, uploads: [] });
+            return;
+          }
+          const uploadsBySubmitter: Record<string, any[]> = {};
+          taskUploads.forEach((u: any) => {
+            const sid = String(u.submittedBy);
+            if (!uploadsBySubmitter[sid]) uploadsBySubmitter[sid] = [];
+            uploadsBySubmitter[sid].push(u);
+          });
+          Object.entries(uploadsBySubmitter).forEach(([submitterId, uploads]) => {
+            reviewItems.push({ task, submitterId, uploads });
+          });
+        });
 
-            const totalAssets = taskUploads.reduce((acc: number, u: any) => acc + (u.files?.length || 0), 0);
-            const overdue = isOverdue(task.dueDate);
+        return (
+          <div className="flex flex-col gap-4">
+            {reviewItems.map((item: any, idx: number) => {
+              const { task, submitterId, uploads } = item;
+              const assignedIds = (Array.isArray(task.assignedToMulti) && task.assignedToMulti.length > 0)
+                ? task.assignedToMulti
+                : task.assignedTo ? [task.assignedTo] : [];
+              const assignees = assignedIds.map((tid: string) => users.find((u: any) => u.id === tid)).filter(Boolean);
+              
+              const latestUpload = uploads.length > 0 
+                ? [...uploads].sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
+                : null;
+              
+              const isRevision = latestUpload ? latestUpload.status === "revision" : task.status === "revision";
+              const submitterObj = users.find((u: any) => String(u.id) === String(submitterId));
+              const submitterName = submitterObj?.name || assignees[0]?.name || "Unassigned";
+              const submitterRole = submitterObj?.role || assignees[0]?.role || "Team Member";
+              const submitterInitial = submitterName.charAt(0).toUpperCase();
+
+              const totalAssets = uploads.reduce((acc: number, u: any) => acc + (u.files?.length || 0), 0);
+              const overdue = isOverdue(task.dueDate);
 
             const priorityConfig: Record<string, { cls: string; dot: string }> = {
               Urgent: { cls: "bg-danger/10 text-danger border border-danger/20", dot: "bg-danger" },
@@ -215,7 +249,7 @@ export default function ReviewPage() {
 
             return (
               <div
-                key={task.id}
+                key={`${task.id}-${submitterId || idx}`}
                 className={`group relative bg-panel border rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 ${isRevision
                     ? "border-warning/30 shadow-warning/5 shadow-md"
                     : "border-line hover:border-primary/30"
@@ -350,7 +384,8 @@ export default function ReviewPage() {
             );
           })}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
