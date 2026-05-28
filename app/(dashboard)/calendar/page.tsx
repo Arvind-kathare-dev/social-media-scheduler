@@ -95,29 +95,32 @@ export default function CalendarPage() {
     <div className="w-full mx-auto flex flex-col h-full pb-6 px-2 sm:px-6">
       
       {/* Header */}
-      <div className="page-title mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight flex items-center gap-3">
-            <CalendarIcon className="text-primary" size={28} />
-            Schedule
+      <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-panel p-5 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden shrink-0">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+        <div className="relative z-10 w-full lg:w-auto flex-1">
+          <h1 className="text-2xl sm:text-3xl font-black m-0 text-text tracking-tight flex flex-wrap items-center gap-3">
+            <div className="p-2 sm:p-2.5 bg-primary/10 rounded-2xl text-primary shrink-0">
+              <CalendarIcon size={24} className="fill-primary/20" />
+            </div>
+            <span className="truncate max-w-full">Schedule</span>
           </h1>
-          <p className="text-muted text-sm mt-2 max-w-xl">
+          <p className="text-muted text-sm mt-3 max-w-xl font-medium leading-relaxed">
             {isAdmin 
               ? "Manage and track all upcoming deadlines across the team." 
               : "Keep track of your upcoming deadlines and project schedule."}
           </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto relative z-10">
           
           {/* Admin Filter */}
           {isAdmin && (
-            <div className="flex items-center gap-2 bg-panel border border-line rounded-lg p-1">
-              <Filter size={16} className="text-muted ml-2" />
+            <div className="flex items-center gap-2 bg-panel-2 border border-line rounded-xl p-1.5 w-full sm:w-auto shadow-sm">
+              <Filter size={16} className="text-muted ml-2 shrink-0" />
               <select 
                 value={selectedUserFilter} 
                 onChange={(e) => setSelectedUserFilter(e.target.value)}
-                className="bg-transparent border-none text-sm font-medium outline-none text-text py-1 pr-2"
+                className="bg-transparent border-none text-sm font-bold outline-none text-text py-1.5 pr-2 w-full cursor-pointer focus:ring-0"
               >
                 <option value="all">All Team Members</option>
                 {users.map((u: any) => (
@@ -128,15 +131,15 @@ export default function CalendarPage() {
           )}
 
           {/* View Toggle */}
-          <div className="flex bg-panel-2 rounded-lg p-1 border border-line">
+          <div className="flex bg-panel-2 rounded-xl p-1.5 border border-line w-full sm:w-auto shadow-sm">
             <button 
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${view === 'Month' ? 'bg-panel shadow-sm text-text border border-line' : 'text-muted hover:text-text border border-transparent'}`}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === 'Month' ? 'bg-panel shadow text-text border border-line' : 'text-muted hover:text-text border border-transparent'}`}
               onClick={() => setView('Month')}
             >
               <CalendarIcon size={16} /> Month
             </button>
             <button 
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${view === 'Agenda' ? 'bg-panel shadow-sm text-text border border-line' : 'text-muted hover:text-text border border-transparent'}`}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === 'Agenda' ? 'bg-panel shadow text-text border border-line' : 'text-muted hover:text-text border border-transparent'}`}
               onClick={() => setView('Agenda')}
             >
               <List size={16} /> Agenda

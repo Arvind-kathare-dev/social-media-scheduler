@@ -28,6 +28,12 @@ export default function UsersPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const isAdmin = currentUser.role === "admin";
   const tasks = store.briefs || [];
@@ -198,27 +204,29 @@ export default function UsersPage() {
   }
 
   const roleColors: any = {
-    admin: "bg-danger/10 text-danger border-danger/20",
-    editor: "bg-warning/10 text-warning border-warning/20",
-    designer: "bg-primary/10 text-primary border-primary/20",
-    developer: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+    admin: { bg: "bg-danger/10 text-danger border-danger/20", dot: "bg-danger shadow-[0_0_8px_rgba(239,68,68,0.8)]" },
+    editor: { bg: "bg-warning/10 text-warning border-warning/20", dot: "bg-warning shadow-[0_0_8px_rgba(245,158,11,0.8)]" },
+    designer: { bg: "bg-primary/10 text-primary border-primary/20", dot: "bg-primary shadow-[0_0_8px_var(--primary-glow)]" },
+    developer: { bg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20", dot: "bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" },
   };
 
   return (
     <div className="w-full mx-auto h-full flex flex-col px-6 pb-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <Users size={16} />
+      {/* Header */}
+      <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-panel p-5 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden shrink-0">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+        <div className="relative z-10 w-full lg:w-auto flex-1">
+          <h1 className="text-2xl sm:text-3xl font-black m-0 text-text tracking-tight flex flex-wrap items-center gap-3">
+            <div className="p-2 sm:p-2.5 bg-primary/10 rounded-2xl text-primary shrink-0">
+              <Users size={24} className="fill-primary/20" />
             </div>
-            <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight">Team Management</h1>
-          </div>
-          <p className="text-muted text-sm m-0 max-w-xl mt-2">
+            <span className="truncate max-w-full">Team Management</span>
+          </h1>
+          <p className="text-muted text-sm mt-3 max-w-xl font-medium leading-relaxed">
             Manage system access, roles, and track task progress across your team.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto relative z-10">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
             <input
@@ -226,27 +234,27 @@ export default function UsersPage() {
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-panel-2 border border-line rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-panel-2 border border-line rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
             />
           </div>
-          <button className="btn primary flex items-center justify-center gap-2 px-5 py-2 h-9 shadow-sm hover:shadow-md transition-all whitespace-nowrap w-full sm:w-auto" onClick={() => handleOpenForm()}>
+          <button className="btn primary flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap w-full sm:w-auto" onClick={() => handleOpenForm()}>
             <Plus size={18} /> <span className="font-semibold hidden sm:inline">Add Member</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-panel border border-strong-line rounded-xl shadow-sm overflow-hidden flex-1">
-        <div className="overflow-x-auto h-full">
+      <div className="bg-panel border border-strong-line rounded-2xl shadow-sm overflow-hidden flex flex-col mb-10">
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-panel-2 border-b border-strong-line">
-                <th className="py-4 px-6 text-[11px] font-bold uppercase tracking-widest text-muted">User</th>
-                <th className="py-4 px-6 text-[11px] font-bold uppercase tracking-widest text-muted">Role</th>
-                <th className="py-4 px-6 text-[11px] font-bold uppercase tracking-widest text-muted">Contact Info</th>
-                <th className="py-4 px-6 text-[11px] font-bold uppercase tracking-widest text-muted text-right">Actions</th>
+                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-muted w-[35%]">User</th>
+                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-muted">Role</th>
+                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-muted">Contact Info</th>
+                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-muted text-right w-[15%]">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-sm">
+            <tbody className="text-sm divide-y divide-line">
               {(() => {
                 const allUsers = store.users || users;
                 const filteredUsers = allUsers.filter((u: any) =>
@@ -254,6 +262,10 @@ export default function UsersPage() {
                   u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
                   u.role.toLowerCase().includes(searchQuery.toLowerCase())
                 );
+                
+                const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
 
                 if (filteredUsers.length === 0) {
                   return (
@@ -265,8 +277,8 @@ export default function UsersPage() {
                   );
                 }
 
-                return filteredUsers.map((u: any) => (
-                  <tr key={u.id} className="border-b border-line last:border-0 hover:bg-panel-2/50 transition-colors group">
+                return paginatedUsers.map((u: any) => (
+                  <tr key={u.id} className="hover:bg-primary/5 transition-colors group">
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white font-bold flex items-center justify-center text-sm shadow-sm ring-2 ring-panel">
@@ -278,7 +290,8 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <span className={`inline-flex items-center px-2.5 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-widest ${roleColors[u.role] || "bg-panel-2 border-line"}`}>
+                      <span className={`inline-flex items-center gap-2 px-3 py-1 border rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm transition-all group-hover:shadow-md ${roleColors[u.role]?.bg || "bg-panel-2 text-muted border-line"}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${roleColors[u.role]?.dot || "bg-muted"}`}></span>
                         {u.role}
                       </span>
                     </td>
@@ -313,6 +326,45 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {(() => {
+            const allUsers = store.users || users;
+            const filteredUsers = allUsers.filter((u: any) =>
+                u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                u.role.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+            const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            
+            return (
+              <div className="flex flex-col sm:flex-row items-center justify-between py-4 px-6 border-t border-line bg-panel-2/30 gap-4">
+                <div className="text-xs font-extrabold text-muted">
+                  Showing <span className="text-text">{filteredUsers.length === 0 ? 0 : startIndex + 1}</span> to <span className="text-text">{Math.min(startIndex + itemsPerPage, filteredUsers.length)}</span> of <span className="text-text">{filteredUsers.length}</span> users
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                  <button 
+                    className="btn ghost h-9 px-3 border border-line bg-panel hover:bg-panel-2 hover:border-strong-line transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft size={14} /> Prev
+                  </button>
+                  <div className="text-xs font-black text-text px-3 bg-panel border border-line rounded-lg h-9 flex items-center shadow-sm">
+                    {currentPage} / {totalPages || 1}
+                  </div>
+                  <button 
+                    className="btn ghost h-9 px-3 border border-line bg-panel hover:bg-panel-2 hover:border-strong-line transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                  >
+                    Next <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+        })()}
       </div>
 
       <Modal
@@ -392,21 +444,22 @@ export default function UsersPage() {
         title="Confirm Deletion"
         maxWidth="max-w-sm"
       >
-        <div className="p-6">
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-16 h-16 bg-danger/10 text-danger rounded-full flex items-center justify-center mb-4">
-              <AlertTriangle size={32} />
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-col items-center text-center mb-8 relative">
+            <div className="absolute inset-0 bg-danger/5 rounded-full blur-2xl -z-10 w-24 h-24 mx-auto top-0"></div>
+            <div className="w-16 h-16 bg-danger/10 text-danger rounded-full flex items-center justify-center mb-6 ring-8 ring-danger/5">
+              <AlertTriangle size={28} strokeWidth={2.5} />
             </div>
-            <h3 className="font-extrabold text-xl text-text mb-2">Remove User?</h3>
-            <p className="text-sm text-muted m-0 leading-relaxed">
-              Are you sure you want to permanently remove <strong className="text-text">{userToDelete?.name}</strong> from the system? They will lose all access immediately.
+            <h3 className="font-black text-2xl text-text mb-3 tracking-tight">Remove User?</h3>
+            <p className="text-[15px] text-muted m-0 leading-relaxed max-w-[260px]">
+              Are you sure you want to permanently remove <strong className="text-text font-black">{userToDelete?.name}</strong>? This action cannot be undone.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 w-full">
-            <button disabled={isDeleting} className="btn ghost w-full font-semibold disabled:opacity-50" onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
-            <button disabled={isDeleting} className="btn bg-danger text-white hover:bg-danger/90 border-transparent shadow-sm w-full font-semibold flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed" onClick={executeDelete}>
-              {isDeleting ? <Loader2 size={16} className="animate-spin" /> : null}
+          <div className="flex flex-col-reverse sm:flex-row gap-3 w-full">
+            <button disabled={isDeleting} className="btn ghost flex-1 h-11 font-bold disabled:opacity-50 border border-line hover:bg-panel-2 rounded-xl transition-all" onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
+            <button disabled={isDeleting} className="btn flex-1 h-11 bg-danger text-white hover:bg-danger/90 hover:shadow-md hover:shadow-danger/20 border-transparent rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all" onClick={executeDelete}>
+              {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={16} />}
               {isDeleting ? "Deleting..." : "Yes, Delete"}
             </button>
           </div>

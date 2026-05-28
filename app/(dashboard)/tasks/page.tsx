@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useScheduler } from "../../context/SchedulerContext";
-import { Plus, Hash, X, Loader2, Sparkles, Lock, Edit2, Trash2, Eye, ChevronLeft, ChevronRight, AlertCircle, Clock, LayoutList, Check, LayoutDashboard, Users, FileText, Search } from "lucide-react";
+import { Plus, Hash, X, Loader2, Sparkles, Lock, Edit2, Trash2, Eye, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, Clock, LayoutList, Check, LayoutDashboard, Users, FileText, Search } from "lucide-react";
 import Input from "../../components/Input";
 import Modal from "../../components/Modal";
 import SlideOver from "../../components/SlideOver";
@@ -361,35 +361,41 @@ export default function TasksPage() {
     return (
         <div className="w-full mx-auto h-full flex flex-col gap-6 px-6 pb-10">
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight flex items-center gap-3">
-                        <LayoutList className="text-primary" size={28} />
-                        Task Management
+            {/* Header */}
+            <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-panel p-5 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden shrink-0">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+                <div className="relative z-10 w-full lg:w-auto flex-1">
+                    <h1 className="text-2xl sm:text-3xl font-black m-0 text-text tracking-tight flex flex-wrap items-center gap-3">
+                        <div className="p-2 sm:p-2.5 bg-primary/10 rounded-2xl text-primary shrink-0">
+                            <LayoutList size={24} className="fill-primary/20" />
+                        </div>
+                        <span className="truncate max-w-full">Task Management</span>
                     </h1>
-                    <p className="text-muted text-sm mt-1">
+                    <p className="text-muted text-sm mt-3 max-w-xl font-medium leading-relaxed">
                         Manage all project briefs, edit assignments, or delete obsolete tasks.
                     </p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="btn primary px-5 py-2.5 shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 text-sm font-semibold whitespace-nowrap"
-                >
-                    <Plus size={18} /> New Task
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto relative z-10">
+                    <button
+                        onClick={openCreateModal}
+                        className="w-full sm:w-auto btn primary px-5 py-2.5 text-sm font-bold shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
+                    >
+                        <Plus size={18} /> New Task
+                    </button>
+                </div>
             </div>
 
-            <div className="bg-panel border border-line rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div className="bg-panel border border-strong-line rounded-2xl shadow-sm overflow-hidden flex flex-col mb-10">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-panel-2/50 text-xs uppercase text-muted font-bold tracking-wider border-b border-line">
+                        <thead className="bg-panel-2 border-b border-strong-line text-[10px] uppercase text-muted font-black tracking-widest">
                             <tr>
-                                <th className="px-6 py-4 font-extrabold">Task Name</th>
-                                <th className="px-6 py-4 font-extrabold">Assignee</th>
-                                <th className="px-6 py-4 font-extrabold">Status</th>
-                                <th className="px-6 py-4 font-extrabold">Priority</th>
-                                <th className="px-6 py-4 font-extrabold">Due Date</th>
-                                <th className="px-6 py-4 font-extrabold text-right">Actions</th>
+                                <th className="px-6 py-4 w-[35%]">Task Name</th>
+                                <th className="px-6 py-4">Assignee</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4">Priority</th>
+                                <th className="px-6 py-4">Due Date</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-line">
@@ -411,7 +417,7 @@ export default function TasksPage() {
                                     const assignees = assignedIds.map((id: string) => users.find((u: any) => u.id === id)).filter(Boolean);
 
                                     return (
-                                        <tr key={task.id} className="hover:bg-panel-2/30 transition-colors group">
+                                        <tr key={task.id} className="hover:bg-primary/5 transition-colors group">
                                             <td className="px-6 py-4 font-semibold text-text max-w-[250px] truncate">
                                                 {task.title}
                                             </td>
@@ -479,30 +485,31 @@ export default function TasksPage() {
                     </table>
                 </div>
 
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-line flex items-center justify-between bg-panel-2/30">
-                        <span className="text-xs text-muted font-medium">
-                            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, briefs.length)} of {briefs.length} entries
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center border border-line bg-panel hover:bg-panel-2 disabled:opacity-50 transition-colors"
-                            >
-                                <ChevronLeft size={16} />
-                            </button>
-                            <div className="text-sm font-bold text-text px-2">{currentPage} / {totalPages}</div>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center border border-line bg-panel hover:bg-panel-2 disabled:opacity-50 transition-colors"
-                            >
-                                <ChevronRight size={16} />
-                            </button>
-                        </div>
+                {/* Pagination Controls */}
+                <div className="flex flex-col sm:flex-row items-center justify-between py-4 px-6 border-t border-line bg-panel-2/30 gap-4">
+                  <div className="text-xs font-extrabold text-muted">
+                    Showing <span className="text-text">{paginatedBriefs.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-text">{Math.min(currentPage * itemsPerPage, briefs.length)}</span> of <span className="text-text">{briefs.length}</span> tasks
+                  </div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <button 
+                      className="btn ghost h-9 px-3 border border-line bg-panel hover:bg-panel-2 hover:border-strong-line transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft size={14} /> Prev
+                    </button>
+                    <div className="text-xs font-black text-text px-3 bg-panel border border-line rounded-lg h-9 flex items-center shadow-sm">
+                      {currentPage} / {totalPages || 1}
                     </div>
-                )}
+                    <button 
+                      className="btn ghost h-9 px-3 border border-line bg-panel hover:bg-panel-2 hover:border-strong-line transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                    >
+                      Next <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
             </div>
 
             {/* CREATE / EDIT MODAL */}
@@ -717,34 +724,24 @@ export default function TasksPage() {
             </Modal>
 
             {/* DELETE CONFIRMATION MODAL */}
-            <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Task" maxWidth="max-w-md">
-                <div className="p-6">
-                    <div className="flex flex-col items-center text-center gap-4 mb-6">
-                        <div className="w-16 h-16 rounded-full bg-danger/10 text-danger flex items-center justify-center">
-                            <Trash2 size={32} />
+            <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Confirm Deletion" maxWidth="max-w-sm">
+                <div className="p-6 sm:p-8">
+                    <div className="flex flex-col items-center text-center mb-8 relative">
+                        <div className="absolute inset-0 bg-danger/5 rounded-full blur-2xl -z-10 w-24 h-24 mx-auto top-0"></div>
+                        <div className="w-16 h-16 bg-danger/10 text-danger rounded-full flex items-center justify-center mb-6 ring-8 ring-danger/5">
+                            <AlertTriangle size={28} strokeWidth={2.5} />
                         </div>
-                        <div>
-                            <h3 className="text-xl font-black text-text mb-2">Are you sure?</h3>
-                            <p className="text-muted text-sm">
-                                Do you really want to delete this task? This action cannot be undone and will remove it from everyone's board.
-                            </p>
-                        </div>
+                        <h3 className="font-black text-2xl text-text mb-3 tracking-tight">Delete Task?</h3>
+                        <p className="text-[15px] text-muted m-0 leading-relaxed max-w-[260px]">
+                            Are you sure you want to permanently delete this task? This action cannot be undone and will remove it from everyone's board.
+                        </p>
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            disabled={isDeleting}
-                            onClick={() => setIsDeleteModalOpen(false)}
-                            className="flex-1 btn bg-panel hover:bg-panel-2 border border-line text-text font-semibold py-2.5 disabled:opacity-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            disabled={isDeleting}
-                            onClick={confirmDelete}
-                            className="flex-1 btn bg-danger hover:bg-danger/90 text-white font-semibold py-2.5 shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            {isDeleting ? <Loader2 size={16} className="animate-spin" /> : null}
-                            {isDeleting ? "Deleting..." : "Delete Task"}
+
+                    <div className="flex flex-col-reverse sm:flex-row gap-3 w-full">
+                        <button disabled={isDeleting} className="btn ghost flex-1 h-11 font-bold disabled:opacity-50 border border-line hover:bg-panel-2 rounded-xl transition-all" onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
+                        <button disabled={isDeleting} className="btn flex-1 h-11 bg-danger text-white hover:bg-danger/90 hover:shadow-md hover:shadow-danger/20 border-transparent rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all" onClick={confirmDelete}>
+                            {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={16} />}
+                            {isDeleting ? "Deleting..." : "Yes, Delete"}
                         </button>
                     </div>
                 </div>

@@ -296,7 +296,7 @@ export default function TaskDetailPage() {
   const assignees = assignedIds.map((tid: string) => users.find((u: any) => u.id === tid)).filter(Boolean);
 
   return (
-    <div className="flex flex-col px-6" style={{ height: '100%' }}>
+    <div className="flex flex-col px-2 sm:px-6 md:h-full">
       {/* ── Header ── */}
       <div className="flex items-start sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-line shrink-0 flex-wrap">
         <div className="flex items-center gap-3">

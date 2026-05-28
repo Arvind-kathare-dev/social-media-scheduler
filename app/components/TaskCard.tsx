@@ -43,13 +43,14 @@ export default function TaskCard({ brief, user, autoOpen = false }: any) {
     <>
       <article 
         onClick={() => router.push(`/tasks/${brief.id}`)}
-        className="task-card p-3 mb-2.5 bg-panel border border-line rounded-custom cursor-pointer hover:border-strong-line hover:shadow-sm transition-all"
+        className="task-card p-4 mb-3 bg-panel border border-line rounded-xl cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group relative overflow-hidden"
       >
-        <div className="card-title font-extrabold mb-2 break-words text-[14px] text-text">
-          <CheckCircle2 size={14} className="inline-block mr-1.5 text-muted/50 relative -top-[1px]" />
+        <div className="absolute top-0 left-0 w-1 h-full bg-line group-hover:bg-primary transition-colors"></div>
+        <div className="card-title font-extrabold mb-3 break-words text-[15px] text-text group-hover:text-primary transition-colors pl-1">
+          <CheckCircle2 size={16} className="inline-block mr-2 text-muted/40 relative -top-[1px] group-hover:text-primary transition-colors" />
           {brief.title}
         </div>
-        <div className="meta flex flex-wrap gap-2 items-center text-xs text-muted">
+        <div className="meta flex flex-wrap gap-2.5 items-center text-[11px] font-bold text-muted pl-1">
           {brief.dueDate && (
             <span className={`due ${dueClass(brief.dueDate)}`}>{formatDate(brief.dueDate)}</span>
           )}
@@ -57,23 +58,23 @@ export default function TaskCard({ brief, user, autoOpen = false }: any) {
           {safePlatforms.map((p: string) => (
             <span 
               key={p} 
-              className="chip platform inline-flex items-center gap-1.5 rounded-[5px] px-1.5 py-0.5 text-white max-w-full text-[10px] font-bold" 
+              className="chip platform inline-flex items-center gap-1.5 rounded-[6px] px-2 py-0.5 text-white max-w-full text-[10px] font-extrabold shadow-sm" 
               style={{ background: platformMeta[p]?.color || "var(--primary)" }}
             >
               {platformMeta[p]?.icon || p}
             </span>
           ))}
           
-          <span className={`priority rounded-[5px] px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
-            brief.priority === 'Low' ? 'bg-ok-bg text-ok' : 
-            brief.priority === 'Urgent' ? 'bg-danger-bg text-danger' : 
+          <span className={`priority rounded-[6px] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm ${
+            brief.priority === 'Low' ? 'bg-ok/10 text-ok border border-ok/20' : 
+            brief.priority === 'Urgent' ? 'bg-danger/10 text-danger border border-danger/20' : 
             'bg-panel-2 text-text border border-line'
           }`}>
             {brief.priority}
           </span>
           
           {user && (
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[9px] font-bold ml-auto shadow-sm">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-[#14a879] text-white flex items-center justify-center text-[10px] font-bold ml-auto shadow-sm ring-2 ring-panel group-hover:ring-primary/20 transition-all">
               {user.avatar || user.name.charAt(0)}
             </div>
           )}

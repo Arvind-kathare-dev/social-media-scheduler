@@ -1,4 +1,4 @@
-:root {
+/* :root {
   color-scheme: light;
   --bg: #f4f6f8;
   --panel: #ffffff;
@@ -844,4 +844,4 @@ button {
   .kanban {
     grid-template-columns: repeat(4, minmax(240px, 280px));
   }
-}
+} */

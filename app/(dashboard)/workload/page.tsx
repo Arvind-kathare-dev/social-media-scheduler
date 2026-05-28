@@ -24,10 +24,10 @@ export default function WorkloadPage() {
   }
 
   const roleColors: any = {
-    admin: "bg-danger/10 text-danger border-danger/20",
-    editor: "bg-warning/10 text-warning border-warning/20",
-    designer: "bg-primary/10 text-primary border-primary/20",
-    developer: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+    admin: { bg: "bg-danger/10 text-danger border-danger/20", dot: "bg-danger shadow-[0_0_8px_rgba(239,68,68,0.8)]" },
+    editor: { bg: "bg-warning/10 text-warning border-warning/20", dot: "bg-warning shadow-[0_0_8px_rgba(245,158,11,0.8)]" },
+    designer: { bg: "bg-primary/10 text-primary border-primary/20", dot: "bg-primary shadow-[0_0_8px_var(--primary-glow)]" },
+    developer: { bg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20", dot: "bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" },
   };
 
   const teamUsers = useMemo(() => {
@@ -55,40 +55,43 @@ export default function WorkloadPage() {
 
   return (
     <div className="w-full mx-auto h-full flex flex-col px-6 pb-6">
-      <div className="mb-6 shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <BarChart3 size={16} />
+      {/* Header */}
+      <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-panel p-5 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden shrink-0">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+        <div className="relative z-10 w-full lg:w-auto flex-1">
+          <h1 className="text-2xl sm:text-3xl font-black m-0 text-text tracking-tight flex flex-wrap items-center gap-3">
+            <div className="p-2 sm:p-2.5 bg-primary/10 rounded-2xl text-primary shrink-0">
+              <BarChart3 size={24} className="fill-primary/20" />
             </div>
-            <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight">Team Workload Dashboard</h1>
-          </div>
-          <p className="text-muted text-sm m-0 max-w-xl mt-2">
+            <span className="truncate max-w-full">Team Workload Dashboard</span>
+          </h1>
+          <p className="text-muted text-sm mt-3 max-w-xl font-medium leading-relaxed">
             Click on a team member's card to monitor their active tasks and manage workload distribution.
           </p>
         </div>
-
-        {/* Global Quick Stats */}
-        <div className="flex gap-4">
-          <div className="bg-panel border border-line rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm min-w-[140px]">
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-              <Activity size={18} />
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto relative z-10">
+          {/* Global Quick Stats */}
+        <div className="flex gap-4 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+          <div className="bg-panel border border-line rounded-2xl px-5 py-4 flex items-center gap-3 shadow-sm flex-1 sm:flex-none min-w-[160px]">
+            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-4 ring-primary/5">
+              <Activity size={20} />
             </div>
             <div>
               <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider">Active Tasks</div>
-              <div className="text-xl font-black text-text leading-none mt-1">{totalInProgress}</div>
+              <div className="text-2xl font-black text-text leading-none mt-1">{totalInProgress}</div>
             </div>
           </div>
-          <div className="bg-panel border border-line rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm min-w-[140px]">
-            <div className="w-10 h-10 rounded-full bg-ok/10 text-ok flex items-center justify-center">
-              <CheckCircle2 size={18} />
+          <div className="bg-panel border border-line rounded-2xl px-5 py-4 flex items-center gap-3 shadow-sm flex-1 sm:flex-none min-w-[160px]">
+            <div className="w-12 h-12 rounded-full bg-ok/10 text-ok flex items-center justify-center ring-4 ring-ok/5">
+              <CheckCircle2 size={20} />
             </div>
             <div>
               <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider">Completed</div>
-              <div className="text-xl font-black text-text leading-none mt-1">{totalCompleted} <span className="text-sm font-medium text-muted">/ {totalTasks}</span></div>
+              <div className="text-2xl font-black text-text leading-none mt-1">{totalCompleted} <span className="text-sm font-bold text-muted">/ {totalTasks}</span></div>
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Scalable Grid of User Cards */}
@@ -108,7 +111,7 @@ export default function WorkloadPage() {
             <div
               key={u.id}
               onClick={() => setSelectedUserId(u.id)}
-              className="bg-panel border border-line rounded-2xl p-5 shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group flex flex-col h-full relative overflow-hidden"
+              className="bg-panel border border-line rounded-2xl p-5 shadow-sm hover:border-primary/50 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full relative overflow-hidden"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -117,7 +120,8 @@ export default function WorkloadPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-text text-[15px] leading-tight group-hover:text-primary transition-colors">{u.name}</h3>
-                    <span className={`inline-flex items-center mt-1 px-1.5 py-0.5 border rounded-md text-[9px] font-extrabold uppercase tracking-widest ${roleColors[u.role] || "bg-panel-2 border-line text-muted"}`}>
+                    <span className={`inline-flex items-center gap-2 mt-1 px-2.5 py-0.5 border rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm transition-all group-hover:shadow-md ${roleColors[u.role]?.bg || "bg-panel-2 text-muted border-line"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${roleColors[u.role]?.dot || "bg-muted"}`}></span>
                       {u.role}
                     </span>
                   </div>
@@ -151,9 +155,6 @@ export default function WorkloadPage() {
                   <span className="text-lg font-black text-text leading-none">{uPending}</span>
                 </div>
               </div>
-
-              {/* Overlay Action */}
-              <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
             </div>
           );
         })}
@@ -175,11 +176,12 @@ export default function WorkloadPage() {
                   {selectedUser.avatar || selectedUser.name.charAt(0)}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 border rounded-md text-[9px] font-extrabold uppercase tracking-widest ${roleColors[selectedUser.role] || "bg-panel-2 border-line text-muted"}`}>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 border rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${roleColors[selectedUser.role]?.bg || "bg-panel-2 text-muted border-line"}`}>
+                      <span className={`w-1 h-1 rounded-full ${roleColors[selectedUser.role]?.dot || "bg-muted"}`}></span>
                       {selectedUser.role}
                     </span>
-                    <span className="text-xs font-bold text-muted">
+                    <span className="text-xs font-bold text-muted bg-panel border border-line px-2 py-0.5 rounded-full">
                       {selectedUserTasks.length} Total Tasks
                     </span>
                   </div>
@@ -222,8 +224,8 @@ export default function WorkloadPage() {
                         <PlayCircle size={16} className="text-primary" /> Current Focus
                         <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold border border-primary/20">{inProgressTasks.length}</span>
                       </h4>
-                      <div className="bg-panel border border-line rounded-xl overflow-hidden shadow-sm">
-                        <table className="w-full text-left text-sm">
+                      <div className="bg-panel border border-line rounded-xl overflow-x-auto shadow-sm">
+                        <table className="w-full text-left text-sm min-w-[500px]">
                           <thead className="bg-panel-2/50 border-b border-line text-xs uppercase tracking-wider text-muted font-extrabold">
                             <tr>
                               <th className="px-4 py-3 w-1/2">Task Name</th>
@@ -265,8 +267,8 @@ export default function WorkloadPage() {
                         <Clock size={16} className="text-muted" /> Upcoming Tasks
                         <span className="bg-panel-2 text-muted text-[10px] px-2 py-0.5 rounded-full font-bold border border-line">{pendingTasks.length}</span>
                       </h4>
-                      <div className="bg-panel border border-line rounded-xl overflow-hidden shadow-sm">
-                        <table className="w-full text-left text-sm">
+                      <div className="bg-panel border border-line rounded-xl overflow-x-auto shadow-sm">
+                        <table className="w-full text-left text-sm min-w-[500px]">
                           <thead className="bg-panel-2/50 border-b border-line text-xs uppercase tracking-wider text-muted font-extrabold">
                             <tr>
                               <th className="px-4 py-3 w-1/2">Task Name</th>
@@ -310,8 +312,8 @@ export default function WorkloadPage() {
                         <CheckCircle2 size={16} className="text-ok" /> Completed
                         <span className="bg-ok/10 text-ok text-[10px] px-2 py-0.5 rounded-full font-bold border border-ok/20">{completedTasks.length}</span>
                       </h4>
-                      <div className="bg-panel border border-line rounded-xl overflow-hidden shadow-sm">
-                        <table className="w-full text-left text-sm">
+                      <div className="bg-panel border border-line rounded-xl overflow-x-auto shadow-sm">
+                        <table className="w-full text-left text-sm min-w-[500px]">
                           <thead className="bg-panel-2/50 border-b border-line text-xs uppercase tracking-wider text-muted font-extrabold">
                             <tr>
                               <th className="px-4 py-3 w-1/2">Task Name</th>

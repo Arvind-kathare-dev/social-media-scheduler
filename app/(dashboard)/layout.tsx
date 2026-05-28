@@ -7,7 +7,7 @@ import { SchedulerProvider, useScheduler } from "../context/SchedulerContext";
 import {
   LayoutDashboard, FileEdit, ListTodo, MessageSquareCheck,
   CalendarDays, Image as ImageIcon, Settings, UploadCloud,
-  Sun, Moon, Bell, Users, BarChart3, Clock
+  Sun, Moon, Bell, Users, BarChart3, Clock, Menu, X
 } from "lucide-react";
 
 const navByRole = {
@@ -42,7 +42,7 @@ const navByRole = {
   ],
 };
 
-function Topbar() {
+function Topbar({ toggleSidebar }: { toggleSidebar?: () => void }) {
   const { dark, toggleDark, store, currentUser, markNotificationsRead } = useScheduler();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -74,9 +74,14 @@ function Topbar() {
   };
 
   return (
-    <header className="topbar flex items-center justify-between h-[64px] px-6 border-b border-line bg-panel/90 backdrop-blur-md shrink-0 z-30">
-      <div className="page-title min-w-0">
-        {/* Title rendering handled by individual pages, but we could put breadcrumbs here */}
+    <header className="topbar flex items-center justify-between h-[64px] px-4 md:px-6 border-b border-line bg-panel/90 backdrop-blur-md shrink-0 z-30">
+      <div className="flex items-center gap-3 min-w-0">
+        <button className="lg:hidden p-2 -ml-2 rounded-md hover:bg-panel-2 text-muted hover:text-text transition-colors" onClick={toggleSidebar} aria-label="Toggle Menu">
+          <Menu size={20} />
+        </button>
+        <div className="page-title min-w-0 hidden md:block">
+          {/* Title rendering handled by individual pages, but we could put breadcrumbs here */}
+        </div>
       </div>
       <div className="top-actions flex items-center gap-3">
         <button className="icon-btn" onClick={toggleDark} title="Toggle theme">
@@ -173,27 +178,47 @@ function Topbar() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean; setIsOpen?: (val: boolean) => void }) {
   const { currentUser, users, setCurrentUserId } = useScheduler();
   const pathname = usePathname();
   const navItems = navByRole[currentUser.role] || [];
 
   return (
-    <aside className="sidebar bg-panel border-r border-line p-5 h-full overflow-y-auto shrink-0" style={{ width: '260px' }}>
-      <div className="brand flex items-center gap-2.5 pb-8 pt-2 px-2 font-extrabold">
-        <div className="brand-mark w-[34px] h-[34px] rounded-lg grid place-items-center text-white bg-gradient-to-br from-primary to-[#14a879] font-black shadow-sm">
-          S
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity" 
+          onClick={() => setIsOpen?.(false)}
+        />
+      )}
+      <aside 
+        className={`sidebar bg-panel border-r border-line p-5 h-full overflow-y-auto shrink-0 transition-transform duration-300 z-50 fixed lg:relative top-0 bottom-0 left-0 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} 
+        style={{ width: '260px' }}
+      >
+        <div className="flex items-center justify-between pb-8 pt-2 px-2">
+          <div className="brand flex items-center gap-2.5 font-extrabold">
+            <div className="brand-mark w-[34px] h-[34px] rounded-lg grid place-items-center text-white bg-gradient-to-br from-primary to-[#14a879] font-black shadow-sm">
+              S
+            </div>
+            <span className="text-lg tracking-tight">VTM</span>
+          </div>
+          <button 
+            className="lg:hidden p-1.5 rounded-md hover:bg-panel-2 text-muted hover:text-text"
+            onClick={() => setIsOpen?.(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
-        <span className="text-lg tracking-tight">VTM</span>
-      </div>
 
       <nav className="nav grid gap-1.5">
         {navItems.map((item) => {
           const isActive = pathname === item.path;
           return (
-            <Link
+              <Link
               key={item.path}
               href={item.path}
+              onClick={() => setIsOpen?.(false)}
               className={`w-full flex items-center gap-2.5 rounded-[7px] px-3 py-2.5 text-sm transition-colors ${isActive ? 'bg-panel-2 text-text font-medium' : 'text-muted hover:bg-panel-2 hover:text-text'}`}
             >
               <span aria-hidden="true" className="w-5 flex items-center justify-center">{item.icon}</span>
@@ -202,13 +227,15 @@ function Sidebar() {
           );
         })}
       </nav>
-    </aside>
+      </aside>
+    </>
   );
 }
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -226,10 +253,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app h-screen flex overflow-hidden bg-bg text-text">
-      <Sidebar />
-      <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar />
+    <div className="app h-screen flex overflow-hidden bg-bg text-text w-full">
+      <Sidebar isOpen={isMobileSidebarOpen} setIsOpen={setIsMobileSidebarOpen} />
+      <main className="flex flex-col flex-1 min-w-0 overflow-hidden w-full">
+        <Topbar toggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)} />
         <section className="content flex-1 overflow-y-auto px-4 py-4">
           {children}
         </section>

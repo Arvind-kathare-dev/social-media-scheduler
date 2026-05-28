@@ -90,13 +90,19 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full mx-auto h-full flex flex-col px-6 pb-10">
-      <div className="flex items-center gap-2 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-          <SettingsIcon size={20} />
-        </div>
-        <div>
-          <h1 className="text-3xl font-extrabold m-0 text-text tracking-tight">Settings</h1>
-          <p className="text-muted text-sm m-0 mt-1">Manage your account preferences and workspace settings.</p>
+      {/* Header */}
+      <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-panel p-5 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden shrink-0">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+        <div className="relative z-10 w-full lg:w-auto flex-1">
+          <h1 className="text-2xl sm:text-3xl font-black m-0 text-text tracking-tight flex flex-wrap items-center gap-3">
+            <div className="p-2 sm:p-2.5 bg-primary/10 rounded-2xl text-primary shrink-0">
+              <SettingsIcon size={24} className="fill-primary/20" />
+            </div>
+            <span className="truncate max-w-full">Settings</span>
+          </h1>
+          <p className="text-muted text-sm mt-3 max-w-xl font-medium leading-relaxed">
+            Manage your account preferences and workspace settings.
+          </p>
         </div>
       </div>
 

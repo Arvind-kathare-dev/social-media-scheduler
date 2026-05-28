@@ -531,27 +531,27 @@ export default function LibraryPage() {
     <div className="w-full mx-auto h-full flex flex-col px-6 pb-6">
 
       {/* Header */}
-      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 bg-panel p-6 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden">
+      <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-panel p-5 sm:p-8 rounded-3xl border border-line shadow-sm relative overflow-hidden shrink-0">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
-        <div className="relative z-10">
-          <h1 className="text-3xl font-black m-0 text-text tracking-tight flex items-center gap-3">
+        <div className="relative z-10 w-full lg:w-auto flex-1">
+          <h1 className="text-2xl sm:text-3xl font-black m-0 text-text tracking-tight flex flex-wrap items-center gap-3">
             {activeFolderId ? (
               <>
                 <button
                   onClick={() => { setActiveFolderId(null); setSearchQuery(""); setPlatformFilter("All"); }}
-                  className="p-2 hover:bg-panel-2 rounded-xl text-muted hover:text-text transition-colors mr-1"
+                  className="p-1.5 sm:p-2 hover:bg-panel-2 rounded-xl text-muted hover:text-text transition-colors mr-1 shrink-0"
                 >
                   <ArrowLeft size={24} />
                 </button>
-                <Folder size={28} className="text-primary fill-primary/20" />
-                {folders.find((f: any) => f.id === activeFolderId)?.name || "Folder"}
+                <Folder size={28} className="text-primary fill-primary/20 shrink-0" />
+                <span className="truncate flex-1 min-w-[120px] max-w-full">{folders.find((f: any) => f.id === activeFolderId)?.name || "Folder"}</span>
               </>
             ) : (
               <>
-                <div className="p-2.5 bg-primary/10 rounded-2xl text-primary">
+                <div className="p-2 sm:p-2.5 bg-primary/10 rounded-2xl text-primary shrink-0">
                   <Folder size={24} className="fill-primary/20" />
                 </div>
-                Project Library
+                <span className="truncate max-w-full">Project Library</span>
               </>
             )}
           </h1>
@@ -562,7 +562,7 @@ export default function LibraryPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 relative z-10 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto relative z-10">
           {!activeFolderId && isAdmin && (
             <button
               onClick={() => {
@@ -571,7 +571,7 @@ export default function LibraryPage() {
                 setFolderAssigneeRole("designer");
                 setIsFolderModalOpen(true);
               }}
-              className="w-full sm:w-auto btn primary px-5 py-2.5 text-sm font-bold shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto btn primary px-5 py-2.5 text-sm font-bold shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
             >
               <FolderPlus size={18} /> Create Project
             </button>
@@ -580,7 +580,7 @@ export default function LibraryPage() {
           {activeFolderId && !isAdmin && (
             <button
               onClick={() => handleDownloadFolder(activeFolderId, folders.find((f: any) => f.id === activeFolderId)?.name || "Folder")}
-              className="w-full sm:w-auto btn bg-panel-2 text-text border border-line px-5 py-2.5 text-sm font-bold shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto btn bg-panel-2 text-text border border-line px-5 py-2.5 text-sm font-bold shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
             >
               <Download size={18} /> Download All
             </button>
@@ -592,7 +592,7 @@ export default function LibraryPage() {
                 setUploadData(prev => ({ ...prev, folderId: activeFolderId || "" }));
                 setIsUploadModalOpen(true);
               }}
-              className="w-full sm:w-auto btn primary px-5 py-2.5 text-sm font-bold shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="w-full sm:w-auto btn primary px-5 py-2.5 text-sm font-bold shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
             >
               <ImageIcon size={18} /> Add Assets
             </button>
